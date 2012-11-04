@@ -215,7 +215,7 @@ static inline void spi_cs_high(void)
 #define NRF24L01P_IO_IRQ_PIN PINB
 
 /* payload size, in bytes */
-#define NRF24L01P_PAYLOAD_WIDTH 8
+#define NRF24L01P_PAYLOAD_WIDTH 4
 /* 3 bytes wide local addresses */
 static const uint8_t NRF24L01P_LADDR[3] = { 0x2a, 0x2a, 0x2a };
 
@@ -275,13 +275,18 @@ static void wait_100ms(void)
 
 /* command context. keep global to reduce the generated code size */
 static uint8_t nrf24l01p_cmd_op;
-static uint8_t nrf24l01p_cmd_buf[8]; /* max(NRF24L01P_PAYLOAD_WIDTH, 5) */
+#if (NRF24L01P_PAYLOAD_WIDTH >= 5)
+static uint8_t nrf24l01p_cmd_buf[NRF24L01P_PAYLOAD_WIDTH];
+#else
+static uint8_t nrf24l01p_cmd_buf[5];
+#endif
 static uint8_t nrf24l01p_cmd_len;
 
 /* commands */
 #define NRF24L01P_CMD_R_REG 0x00
 #define NRF24L01P_CMD_W_REG 0x20
-#define NRF24L01P_CMD_R_RX_PAYLOAD 0x31
+#define NRF24L01P_CMD_R_RX_PL_WID 0x60
+#define NRF24L01P_CMD_R_RX_PAYLOAD 0x61
 #define NRF24L01P_CMD_W_TX_PAYLOAD 0xa0
 #define NRF24L01P_CMD_FLUSH_TX 0xe1
 #define NRF24L01P_CMD_FLUSH_RX 0xe2
@@ -627,12 +632,27 @@ static void nrf24l01p_send_noack(uint8_t a, const uint8_t* s)
   /* in no ack mode, the chip directly returns to standy */
 }
 
-static void nrf24l01p_recv(void)
+static void nrf24l01p_read_rx_fifo(void)
 {
-  /* receive one payload */
-  /* payload available in nrf24l01p_cmd_buf */
-  nrf24l01p_cmd_make(NRF24L01P_CMD_W_TX_PAYLOAD, NRF24L01P_PAYLOAD_WIDTH);
+  /* read one payload */
+
+  /* get the rx fifo top payload width */
+  nrf24l01p_cmd_make(NRF24L01P_CMD_R_RX_PL_WID, 1);
   nrf24l01p_cmd_read();
+
+  /* datasheet, p58 note says to flush if lt 32 */
+  /* if (n > 32) */
+  if (nrf24l01p_cmd_buf[0] != NRF24L01P_PAYLOAD_WIDTH)
+  {
+    nrf24l01p_cmd_len = 0;
+    nrf24l01p_flush_rx();
+    return ;
+  }
+
+  nrf24l01p_cmd_make(NRF24L01P_CMD_R_RX_PAYLOAD, NRF24L01P_PAYLOAD_WIDTH);
+  nrf24l01p_cmd_read();
+
+  /* payload and length available in nrf24l01p_cmd_xxx */
 }
 
 static uint8_t nrf24l01p_read_irq(void)
@@ -643,7 +663,6 @@ static uint8_t nrf24l01p_read_irq(void)
   if ((NRF24L01P_IO_IRQ_PIN & NRF24L01P_IO_IRQ_MASK) == 0)
   {
     const uint8_t x = nrf24l01p_read_status();
-    uart_write((uint8_t*)"y\r\n", 3);
     /* reset irq by writing back 1s to the source bits */
     nrf24l01p_write_status(x);
     return x;
@@ -652,35 +671,29 @@ static uint8_t nrf24l01p_read_irq(void)
   return 0;
 }
 
-static inline unsigned int nrf24l01p_is_rx(void)
+static inline unsigned int nrf24l01p_is_rx_irq(void)
 {
   /* return non zero if rx related interrupt */
   return nrf24l01p_read_irq() & NRF24L01P_IRQ_MASK_RX_DR;
 }
 
-/* toremove, debugging routines */
-static inline uint8_t nrf24l01p_is_rx2(void)
-{
-  const uint8_t x = nrf24l01p_read_status();
-  if ((x & (7 << 1)) == (7 << 1)) return 0;
-  return 1;
-}
-
 static inline uint8_t nrf24l01p_is_carrier(void)
 {
+  /* in rx mode, return non zero if carrier detected */
   return nrf24l01p_read_reg8(NRF24L01P_REG_RPD) & 1;
 }
 
 static inline uint8_t nrf24l01p_is_rx_empty(void)
 {
+  /* return non zero if rx fifo is empty */
   return nrf24l01p_read_reg8(NRF24L01P_REG_FIFO_STATUS) & (1 << 0);
 }
 
 static inline uint8_t nrf24l01p_is_rx_full(void)
 {
+  /* return non zero if rx fifo is full */
   return nrf24l01p_read_reg8(NRF24L01P_REG_FIFO_STATUS) & (1 << 1);
 }
-/* toremove, debugging routines */
 
 
 /* main */
@@ -693,15 +706,6 @@ int main(void)
 #endif /* NRF24L01P_UART */
 
   nrf24l01p_setup();
-
-  /* test, read back the addr */
-  {
-    unsigned int i;
-    for (i = 0; i < 5; ++i) nrf24l01p_cmd_buf[i] = '+';
-    nrf24l01p_read_reg40(NRF24L01P_REG_RX_ADDR_P0);
-    uart_write(nrf24l01p_cmd_buf, 5);
-    uart_write((uint8_t*)"\r\n", 2);
-  }
 
   /* sparkfun usb serial board configuration */
   nrf24l01p_enable_crc8();
@@ -726,41 +730,20 @@ int main(void)
   nrf24l01p_powerdown_to_standby();
   nrf24l01p_standby_to_rx();
 
-  /* debugging */
-  uint8_t flags;
-
  redo_receive:
 
-  flags = 0;
+  if (nrf24l01p_is_rx_full()) nrf24l01p_flush_rx();
 
-  if (nrf24l01p_is_rx_full())
-  {
-    uart_write((uint8_t*)"f\r\n", 3);
-    nrf24l01p_flush_rx();
-  }
+  while (nrf24l01p_is_rx_irq() == 0) ;
 
-  while (nrf24l01p_is_rx() == 0)
-  {
-    if (((flags & (1 << 0)) == 0) && nrf24l01p_is_rx2())
-    {
-      flags |= 1 << 0;
-      uart_write((uint8_t*)"z\r\n", 3);
-    }
+  nrf24l01p_read_rx_fifo();
 
-    if (((flags & (1 << 1)) == 0) && nrf24l01p_is_carrier())
-    {
-      flags |= 1 << 1;
-      uart_write((uint8_t*)"c\r\n", 3);
-    }
+  if (nrf24l01p_cmd_len == 0)
+    uart_write((uint8_t*)"ko", 2);
+  else
+    uart_write((uint8_t*)nrf24l01p_cmd_buf, nrf24l01p_cmd_len);
+  uart_write((uint8_t*)"\r\n", 2);
 
-    if (((flags & (1 << 2)) == 0) && nrf24l01p_is_rx_empty() == 0)
-    {
-      flags |= 1 << 2;
-      uart_write((uint8_t*)"e\r\n", 3);
-    }
-  }
-  uart_write((uint8_t*)"x\r\n", 3);
-  nrf24l01p_recv();
   goto redo_receive;
 
   return 0;
