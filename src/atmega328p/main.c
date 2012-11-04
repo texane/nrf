@@ -66,6 +66,16 @@ static inline uint8_t hex(uint8_t x)
   return (x >= 0xa) ? 'a' + x - 0xa : '0' + x;
 }
 
+static uint8_t* uint8_to_string(uint8_t x)
+{
+  static uint8_t buf[2];
+
+  buf[1] = hex(nibble(x, 0));
+  buf[0] = hex(nibble(x, 1));
+
+  return buf;
+}
+
 static uint8_t* uint32_to_string(uint32_t x)
 {
   static uint8_t buf[8];
@@ -205,7 +215,7 @@ static inline void spi_cs_high(void)
 #define NRF24L01P_IO_IRQ_PIN PINB
 
 /* payload size, in bytes */
-#define NRF24L01P_PAYLOAD_SIZE 8
+#define NRF24L01P_PAYLOAD_WIDTH 8
 /* 3 bytes wide local addresses */
 static const uint8_t NRF24L01P_LADDR[3] = { 0x2a, 0x2a, 0x2a };
 
@@ -265,7 +275,7 @@ static void wait_100ms(void)
 
 /* command context. keep global to reduce the generated code size */
 static uint8_t nrf24l01p_cmd_op;
-static uint8_t nrf24l01p_cmd_buf[8]; /* max(NRF24L01P_PAYLOAD_SIZE, 5) */
+static uint8_t nrf24l01p_cmd_buf[8]; /* max(NRF24L01P_PAYLOAD_WIDTH, 5) */
 static uint8_t nrf24l01p_cmd_len;
 
 /* commands */
@@ -305,6 +315,12 @@ static uint8_t nrf24l01p_cmd_len;
 #define NRF24L01P_REG_FIFO_STATUS 0x17
 #define NRF24L01P_REG_DYNPD 0x1c
 #define NRF24L01P_REG_FEATURE 0x1d
+
+/* irqs related masks */
+#define NRF24L01P_IRQ_MASK_RX_DR (1 << 6)
+#define NRF24L01P_IRQ_MASK_TX_DS (1 << 5)
+#define NRF24L01P_IRQ_MASK_MAX_RT (1 << 4)
+#define NRF24L01P_IRQ_MASK_ALL (7 << 4)
 
 static void nrf24l01p_cmd_prolog(void)
 {
@@ -385,12 +401,14 @@ static inline void nrf24l01p_write_reg40(uint8_t r)
   nrf24l01p_cmd_write();
 }
 
-static uint8_t nrf24l01p_read_status(void)
+static inline uint8_t nrf24l01p_read_status(void)
 {
-  /* status is always clocked out on miso after a cs hilo trans */
-  nrf24l01p_cmd_make(NRF24L01P_CMD_NOP, 1);
-  nrf24l01p_cmd_read();
-  return nrf24l01p_cmd_buf[0];
+  return nrf24l01p_read_reg8(NRF24L01P_REG_STATUS);
+}
+
+static inline void nrf24l01p_write_status(uint8_t x)
+{
+  nrf24l01p_write_reg8(NRF24L01P_REG_STATUS, x);
 }
 
 
@@ -403,49 +421,61 @@ static inline void nrf24l01p_set_powerdown(void)
 
 static inline void nrf24l01p_set_standby(void)
 {
-  /* assume tx or rx mode */
+  /* standby = powerup + ce_low */
   NRF24L01P_IO_CE_PORT &= ~NRF24L01P_IO_CE_MASK;
+  nrf24l01p_or_reg8(NRF24L01P_REG_CONFIG, 1 << 1);
 }
 
 static inline void nrf24l01p_set_tx(void)
 {
-  /* set PRIM_RX low */
-  nrf24l01p_and_reg8(NRF24L01P_REG_CONFIG, ~(1 << 0));
+  /* set powerup high, PRIM_RX low, int on tx_ds */
+  /* warning: irq are active low, clearing mask bit enable */
+
+  static const uint8_t and_mask = ~(NRF24L01P_IRQ_MASK_ALL | (3 << 0));
+  static const uint8_t or_mask = NRF24L01P_IRQ_MASK_ALL | (1 << 1);
+
+  nrf24l01p_and_or_reg8(NRF24L01P_REG_CONFIG, and_mask, or_mask);
+  NRF24L01P_IO_CE_PORT |= NRF24L01P_IO_CE_MASK;
 }
 
 static inline void nrf24l01p_set_rx(void)
 {
-  /* set PRIM_RX high */
-  nrf24l01p_or_reg8(NRF24L01P_REG_CONFIG, 1 << 1);
+  /* set powerup high, PRIM_RX high, interrupt on rx_dr */
+  /* warning: irq are active low, clearing mask bit enable */
+
+  static const uint8_t and_mask = ~(NRF24L01P_IRQ_MASK_ALL | (3 << 0));
+  static const uint8_t or_mask =
+    NRF24L01P_IRQ_MASK_TX_DS | NRF24L01P_IRQ_MASK_MAX_RT | (3 << 0);
+
+  nrf24l01p_and_or_reg8(NRF24L01P_REG_CONFIG, and_mask, or_mask);
+  NRF24L01P_IO_CE_PORT |= NRF24L01P_IO_CE_MASK;
 }
 
-static void nrf24l01p_powerdown_to_standby(void)
+static inline void nrf24l01p_powerdown_to_standby(void)
 {
   nrf24l01p_set_standby();
   wait_5ms();
 }
 
-static void nrf24l01p_standby_to_rx(void)
+static inline void nrf24l01p_standby_to_rx(void)
 {
   nrf24l01p_set_rx();
-  NRF24L01P_IO_CE_PORT |= NRF24L01P_IO_CE_MASK;
   wait_130us();
 }
 
-static void nrf24l01p_standby_to_tx(void)
-{
-  nrf24l01p_set_tx();
-  NRF24L01P_IO_CE_PORT |= NRF24L01P_IO_CE_MASK;
-  wait_130us();
-}
-
-static void nrf24l01p_rx_to_tx(void)
+static inline void nrf24l01p_standby_to_tx(void)
 {
   nrf24l01p_set_tx();
   wait_130us();
 }
 
-static void nrf24l01p_tx_to_rx(void)
+static inline void nrf24l01p_rx_to_tx(void)
+{
+  nrf24l01p_set_tx();
+  wait_130us();
+}
+
+static inline void nrf24l01p_tx_to_rx(void)
 {
   nrf24l01p_set_rx();
   wait_130us();
@@ -508,13 +538,18 @@ static void nrf24l01p_setup(void)
   nrf24l01p_write_reg40(NRF24L01P_REG_TX_ADDR);
 
   /* pipe0 payload size */
-  nrf24l01p_write_reg8(NRF24L01P_REG_RX_PW_P0, NRF24L01P_PAYLOAD_SIZE);
+  nrf24l01p_write_reg8(NRF24L01P_REG_RX_PW_P0, NRF24L01P_PAYLOAD_WIDTH);
 
   /* pipe0 disable dynamic payload */
   nrf24l01p_write_reg8(NRF24L01P_REG_DYNPD, 0);
 
   /* disable dynamic payload, payload with ack, noack */
   nrf24l01p_write_reg8(NRF24L01P_REG_FEATURE, 0);
+}
+
+static inline void nrf24l01p_set_payload_width(uint8_t x)
+{
+  nrf24l01p_write_reg8(NRF24L01P_REG_RX_PW_P0, x);
 }
 
 static inline void nrf24l01p_enable_crc8(void)
@@ -530,6 +565,18 @@ static inline void nrf24l01p_enable_crc16(void)
 static inline void nrf24l01p_disable_crc(void)
 {
   nrf24l01p_and_reg8(NRF24L01P_REG_CONFIG, ~(1 << 3));
+}
+
+static inline void nrf24l01p_flush_rx(void)
+{
+  nrf24l01p_cmd_make(NRF24L01P_CMD_FLUSH_RX, 0);
+  nrf24l01p_cmd_write();
+}
+
+static inline void nrf24l01p_flush_tx(void)
+{
+  nrf24l01p_cmd_make(NRF24L01P_CMD_FLUSH_TX, 0);
+  nrf24l01p_cmd_write();
 }
 
 static inline void nrf24l01p_set_addr_width(uint8_t x)
@@ -552,16 +599,6 @@ static inline void nrf24l01p_set_chan(uint8_t x)
   nrf24l01p_write_reg8(NRF24L01P_REG_RF_CH, x);
 }
 
-static void nrf24l01p_set_raddr(const uint8_t* addr)
-{
-  /* set the remote address */
-  /* assume a 3 bytes wide addr */
-  nrf24l01p_cmd_buf[0] = addr[0];
-  nrf24l01p_cmd_buf[1] = addr[1];
-  nrf24l01p_cmd_buf[2] = addr[2];
-  nrf24l01p_write_reg40(NRF24L01P_REG_TX_ADDR);
-}
-
 static void nrf24l01p_enable_art(uint8_t n, uint8_t d)
 {
   /* enable automatic retransmission */
@@ -577,7 +614,7 @@ static void nrf24l01p_disable_art(void)
 
 static void nrf24l01p_send(void)
 {
-  /* send one payload, of size NRF24L01P_PAYLOAD_SIZE */
+  /* send one payload, of size NRF24L01P_PAYLOAD_WIDTH */
 
   /* a the addr */
   /* s the buffer to send */
@@ -594,23 +631,21 @@ static void nrf24l01p_recv(void)
 {
   /* receive one payload */
   /* payload available in nrf24l01p_cmd_buf */
-  nrf24l01p_cmd_make(NRF24L01P_CMD_W_TX_PAYLOAD, NRF24L01P_PAYLOAD_SIZE);
+  nrf24l01p_cmd_make(NRF24L01P_CMD_W_TX_PAYLOAD, NRF24L01P_PAYLOAD_WIDTH);
   nrf24l01p_cmd_read();
 }
 
-static inline uint8_t nrf24l01p_read_irq(void)
+static uint8_t nrf24l01p_read_irq(void)
 {
-#define NRF24L01P_IRQ_MASK_RX_DR (1 << 6)
-#define NRF24L01P_IRQ_MASK_TX_DS (1 << 5)
-#define NRF24L01P_IRQ_MASK_MAX_RT (1 << 4)
-#define NRF24L01P_IRQ_MASK_ALL (7 << 4)
+  /* read and reset the irq bits if required */
 
   /* irq signal is active low */
   if ((NRF24L01P_IO_IRQ_PIN & NRF24L01P_IO_IRQ_MASK) == 0)
   {
-    const uint8_t x = nrf24l01p_read_reg8(NRF24L01P_REG_CONFIG);
+    const uint8_t x = nrf24l01p_read_status();
+    uart_write((uint8_t*)"y\r\n", 3);
     /* reset irq by writing back 1s to the source bits */
-    nrf24l01p_write_reg8(NRF24L01P_REG_CONFIG, x);
+    nrf24l01p_write_status(x);
     return x;
   }
 
@@ -622,6 +657,30 @@ static inline unsigned int nrf24l01p_is_rx(void)
   /* return non zero if rx related interrupt */
   return nrf24l01p_read_irq() & NRF24L01P_IRQ_MASK_RX_DR;
 }
+
+/* toremove, debugging routines */
+static inline uint8_t nrf24l01p_is_rx2(void)
+{
+  const uint8_t x = nrf24l01p_read_status();
+  if ((x & (7 << 1)) == (7 << 1)) return 0;
+  return 1;
+}
+
+static inline uint8_t nrf24l01p_is_carrier(void)
+{
+  return nrf24l01p_read_reg8(NRF24L01P_REG_RPD) & 1;
+}
+
+static inline uint8_t nrf24l01p_is_rx_empty(void)
+{
+  return nrf24l01p_read_reg8(NRF24L01P_REG_FIFO_STATUS) & (1 << 0);
+}
+
+static inline uint8_t nrf24l01p_is_rx_full(void)
+{
+  return nrf24l01p_read_reg8(NRF24L01P_REG_FIFO_STATUS) & (1 << 1);
+}
+/* toremove, debugging routines */
 
 
 /* main */
@@ -635,16 +694,27 @@ int main(void)
 
   nrf24l01p_setup();
 
+  /* test, read back the addr */
+  {
+    unsigned int i;
+    for (i = 0; i < 5; ++i) nrf24l01p_cmd_buf[i] = '+';
+    nrf24l01p_read_reg40(NRF24L01P_REG_RX_ADDR_P0);
+    uart_write(nrf24l01p_cmd_buf, 5);
+    uart_write((uint8_t*)"\r\n", 2);
+  }
+
   /* sparkfun usb serial board configuration */
-  nrf24l01p_enable_crc16();
+  nrf24l01p_enable_crc8();
   /* auto ack disabled */
   /* auto retransmit disabled */
-  /* 5 bytes addr width */
-  nrf24l01p_set_addr_width(NRF24L01P_ADDR_WIDTH_5);
+  /* 4 bytes payload */
+  nrf24l01p_set_payload_width(4);
   /* 1mbps, 0dbm */
   nrf24l01p_set_rate(NRF24L01P_RATE_1MBPS);
   /* channel 2 */
   nrf24l01p_set_chan(2);
+  /* 5 bytes addr width */
+  nrf24l01p_set_addr_width(NRF24L01P_ADDR_WIDTH_5);
   /* rx address */
   nrf24l01p_cmd_buf[0] = 0xe7;
   nrf24l01p_cmd_buf[1] = 0xe7;
@@ -656,8 +726,39 @@ int main(void)
   nrf24l01p_powerdown_to_standby();
   nrf24l01p_standby_to_rx();
 
+  /* debugging */
+  uint8_t flags;
+
  redo_receive:
-  while (nrf24l01p_is_rx() == 0) ;
+
+  flags = 0;
+
+  if (nrf24l01p_is_rx_full())
+  {
+    uart_write((uint8_t*)"f\r\n", 3);
+    nrf24l01p_flush_rx();
+  }
+
+  while (nrf24l01p_is_rx() == 0)
+  {
+    if (((flags & (1 << 0)) == 0) && nrf24l01p_is_rx2())
+    {
+      flags |= 1 << 0;
+      uart_write((uint8_t*)"z\r\n", 3);
+    }
+
+    if (((flags & (1 << 1)) == 0) && nrf24l01p_is_carrier())
+    {
+      flags |= 1 << 1;
+      uart_write((uint8_t*)"c\r\n", 3);
+    }
+
+    if (((flags & (1 << 2)) == 0) && nrf24l01p_is_rx_empty() == 0)
+    {
+      flags |= 1 << 2;
+      uart_write((uint8_t*)"e\r\n", 3);
+    }
+  }
   uart_write((uint8_t*)"x\r\n", 3);
   nrf24l01p_recv();
   goto redo_receive;
