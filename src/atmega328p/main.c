@@ -290,9 +290,9 @@ static uint8_t nrf24l01p_cmd_len;
 #define NRF24L01P_CMD_R_RX_PL_WID 0x60
 #define NRF24L01P_CMD_R_RX_PAYLOAD 0x61
 #define NRF24L01P_CMD_W_TX_PAYLOAD 0xa0
+#define NRF24L01P_CMD_W_TX_PAYLOAD_NOACK 0xb0
 #define NRF24L01P_CMD_FLUSH_TX 0xe1
 #define NRF24L01P_CMD_FLUSH_RX 0xe2
-#define NRF24L01P_CMD_W_TX_PAYLOAD_NOACK 0xb0
 #define NRF24L01P_CMD_NOP 0xff
 
 /* registers */
@@ -626,58 +626,6 @@ static void nrf24l01p_disable_art(void)
   /* disable automatic retransmission */
 }
 
-static void nrf24l01p_read_rx(void)
-{
-  /* read the rx fifo top payload */
-
-  /* get top payload width */
-  nrf24l01p_cmd_make(NRF24L01P_CMD_R_RX_PL_WID, 1);
-  nrf24l01p_cmd_read();
-
-  /* datasheet, p58 note says to flush if lt 32 */
-  /* if (n > 32) */
-  if (nrf24l01p_cmd_buf[0] != NRF24L01P_PAYLOAD_WIDTH)
-  {
-    nrf24l01p_cmd_len = 0;
-    nrf24l01p_flush_rx();
-    return ;
-  }
-
-  nrf24l01p_cmd_make(NRF24L01P_CMD_R_RX_PAYLOAD, NRF24L01P_PAYLOAD_WIDTH);
-  nrf24l01p_cmd_read();
-
-  /* payload and length available in nrf24l01p_cmd_xxx */
-}
-
-static void nrf24l01p_write_tx(void)
-{
-  /* send one payload, of size NRF24L01P_PAYLOAD_WIDTH */
-  nrf24l01p_cmd_make(NRF24L01P_CMD_W_TX_PAYLOAD, NRF24L01P_PAYLOAD_WIDTH);
-  nrf24l01p_cmd_write();
-
-  /* TODO: pulse ce to start transmission, refer to doc */
-  NRF24L01P_IO_CE_PORT |= NRF24L01P_IO_CE_MASK;
-  wait_5ms();
-  NRF24L01P_IO_CE_PORT &= ~NRF24L01P_IO_CE_MASK;
-}
-
-static inline void nrf24l01p_enable_tx_noack(void)
-{
-  nrf24l01p_or_reg8(NRF24L01P_REG_FEATURE, 1 << 0);
-}
-
-static void nrf24l01p_write_tx_noack(void)
-{
-  /* in no ack mode, the chip directly returns to standy */
-  nrf24l01p_cmd_make(NRF24L01P_CMD_W_TX_PAYLOAD_NOACK, NRF24L01P_PAYLOAD_WIDTH);
-  nrf24l01p_cmd_write();
-
-  /* TODO: pulse ce to start transmission, refer to doc */
-  NRF24L01P_IO_CE_PORT |= NRF24L01P_IO_CE_MASK;
-  wait_5ms();
-  NRF24L01P_IO_CE_PORT &= ~NRF24L01P_IO_CE_MASK;
-}
-
 static uint8_t nrf24l01p_read_irq(void)
 {
   /* read and reset the irq bits if required */
@@ -705,6 +653,72 @@ static inline unsigned int nrf24l01p_is_tx_irq(void)
 {
   /* return non zero if tx related interrupt */
   return nrf24l01p_read_irq() & NRF24L01P_IRQ_MASK_TX_DS;
+}
+
+static void nrf24l01p_read_rx(void)
+{
+  /* read the rx fifo top payload */
+
+  /* get top payload width */
+  nrf24l01p_cmd_make(NRF24L01P_CMD_R_RX_PL_WID, 1);
+  nrf24l01p_cmd_read();
+
+  /* datasheet, p58 note says to flush if lt 32 */
+  /* if (n > 32) */
+  if (nrf24l01p_cmd_buf[0] != NRF24L01P_PAYLOAD_WIDTH)
+  {
+    nrf24l01p_cmd_len = 0;
+    nrf24l01p_flush_rx();
+    return ;
+  }
+
+  nrf24l01p_cmd_make(NRF24L01P_CMD_R_RX_PAYLOAD, NRF24L01P_PAYLOAD_WIDTH);
+  nrf24l01p_cmd_read();
+
+  /* payload and length available in nrf24l01p_cmd_xxx */
+}
+
+static void nrf24l01p_write_tx(void)
+{
+  /* send one payload, of size NRF24L01P_PAYLOAD_WIDTH */
+
+  /* this clears irqs */
+  nrf24l01p_read_irq();
+
+  nrf24l01p_cmd_make(NRF24L01P_CMD_W_TX_PAYLOAD, NRF24L01P_PAYLOAD_WIDTH);
+  nrf24l01p_cmd_write();
+
+  /* FIXME, has to write twice */
+  nrf24l01p_cmd_write();
+  /* FIXME, has to write twice */
+
+  /* TODO: pulse ce to start transmission, refer to doc */
+  NRF24L01P_IO_CE_PORT |= NRF24L01P_IO_CE_MASK;
+  wait_130us();
+  NRF24L01P_IO_CE_PORT &= ~NRF24L01P_IO_CE_MASK;
+}
+
+static inline void nrf24l01p_enable_tx_noack(void)
+{
+  nrf24l01p_or_reg8(NRF24L01P_REG_FEATURE, 1 << 0);
+}
+
+static void nrf24l01p_write_tx_noack(void)
+{
+  /* this clears any pending irqs */
+  nrf24l01p_read_irq();
+
+  nrf24l01p_cmd_make(NRF24L01P_CMD_W_TX_PAYLOAD_NOACK, NRF24L01P_PAYLOAD_WIDTH);
+  nrf24l01p_cmd_write();
+
+  /* FIXME, has to write twice */
+  nrf24l01p_cmd_write();
+  /* FIXME, has to write twice */
+
+  /* TODO: pulse ce to start transmission, refer to doc */
+  NRF24L01P_IO_CE_PORT |= NRF24L01P_IO_CE_MASK;
+  wait_130us();
+  NRF24L01P_IO_CE_PORT &= ~NRF24L01P_IO_CE_MASK;
 }
 
 static inline uint8_t nrf24l01p_is_carrier(void)
@@ -835,10 +849,10 @@ int main(void)
 
     /* push into the tx fifo, then pulse ce to send */
     if (nrf24l01p_is_tx_empty() == 0) nrf24l01p_flush_tx();
-    nrf24l01p_cmd_buf[0] = '*';
-    nrf24l01p_cmd_buf[1] = '*';
-    nrf24l01p_cmd_buf[2] = '*';
-    nrf24l01p_cmd_buf[3] = '*';
+    nrf24l01p_cmd_buf[0] = 'a';
+    nrf24l01p_cmd_buf[1] = 'b';
+    nrf24l01p_cmd_buf[2] = 'c';
+    nrf24l01p_cmd_buf[3] = 'd';
     nrf24l01p_write_tx_noack();
     while (nrf24l01p_is_tx_irq() == 0) ;
 
