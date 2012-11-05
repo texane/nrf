@@ -709,16 +709,33 @@ static inline uint8_t nrf24l01p_is_carrier(void)
   return nrf24l01p_read_reg8(NRF24L01P_REG_RPD) & 1;
 }
 
+static inline uint8_t nrf24l01p_read_fifo_status(void)
+{
+  return nrf24l01p_read_reg8(NRF24L01P_REG_FIFO_STATUS);
+}
+
 static inline uint8_t nrf24l01p_is_rx_empty(void)
 {
   /* return non zero if rx fifo is empty */
-  return nrf24l01p_read_reg8(NRF24L01P_REG_FIFO_STATUS) & (1 << 0);
+  return nrf24l01p_read_fifo_status() & (1 << 0);
 }
 
 static inline uint8_t nrf24l01p_is_rx_full(void)
 {
   /* return non zero if rx fifo is full */
-  return nrf24l01p_read_reg8(NRF24L01P_REG_FIFO_STATUS) & (1 << 1);
+  return nrf24l01p_read_fifo_status() & (1 << 1);
+}
+
+static inline uint8_t nrf24l01p_is_tx_empty(void)
+{
+  /* return non zero if tx fifo is empty */
+  return nrf24l01p_read_fifo_status() & (1 << 4);
+}
+
+static inline uint8_t nrf24l01p_is_tx_full(void)
+{
+  /* return non zero if tx fifo is full */
+  return nrf24l01p_read_fifo_status() & (1 << 5);
 }
 
 
@@ -728,13 +745,13 @@ int main(void)
 {
 #if (NRF24L01P_UART == 1)
   uart_setup();
-  uart_write((uint8_t*)"o\r\n", 3);
 #endif /* NRF24L01P_UART */
 
   nrf24l01p_setup();
 
   /* sparkfun usb serial board configuration */
-  nrf24l01p_enable_crc8();
+  /* NOTE: nrf24l01p_enable_crc8(); for nrf24l01p board */
+  nrf24l01p_enable_crc16();
   /* auto ack disabled */
   /* auto retransmit disabled */
   /* 4 bytes payload */
@@ -764,10 +781,11 @@ int main(void)
   nrf24l01p_powerdown_to_standby();
   nrf24l01p_standby_to_rx();
 
+  uart_write((uint8_t*)"starting\r\n", 10);
+
  redo_receive:
 
   if (nrf24l01p_is_rx_full()) nrf24l01p_flush_rx();
-  nrf24l01p_flush_tx();
 
   while (nrf24l01p_is_rx_irq() == 0) ;
 
@@ -780,10 +798,18 @@ int main(void)
   else
   {
     uart_write((uint8_t*)nrf24l01p_cmd_buf, nrf24l01p_cmd_len);
-
     nrf24l01p_rx_to_tx();
+
+    if (nrf24l01p_is_tx_empty() == 0) nrf24l01p_flush_tx();
+
+    nrf24l01p_cmd_buf[0] = '*';
+    nrf24l01p_cmd_buf[1] = '*';
+    nrf24l01p_cmd_buf[2] = '*';
+    nrf24l01p_cmd_buf[3] = '*';
     nrf24l01p_write_tx_noack();
-    /* nrf24l01p_write_tx(); */
+
+    if (nrf24l01p_is_tx_empty() == 0) uart_write((uint8_t*)"\r\nne", 4);
+
     nrf24l01p_standby_to_rx();
   }
   uart_write((uint8_t*)"\r\n", 2);
