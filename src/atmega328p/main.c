@@ -652,10 +652,13 @@ static void nrf24l01p_write_tx(void)
   nrf24l01p_cmd_make(NRF24L01P_CMD_W_TX_PAYLOAD, NRF24L01P_PAYLOAD_WIDTH);
   nrf24l01p_cmd_write();
 
-  /* TODO: refer to doc */
+  /* TODO: pulse ce to start transmission, refer to doc */
   NRF24L01P_IO_CE_PORT |= NRF24L01P_IO_CE_MASK;
   wait_5ms();
   NRF24L01P_IO_CE_PORT &= ~NRF24L01P_IO_CE_MASK;
+
+  /* TODO: wait for transfer to complete */
+  wait_5ms();
 }
 
 static inline void nrf24l01p_enable_tx_noack(void)
@@ -669,10 +672,13 @@ static void nrf24l01p_write_tx_noack(void)
   nrf24l01p_cmd_make(NRF24L01P_CMD_W_TX_PAYLOAD_NOACK, NRF24L01P_PAYLOAD_WIDTH);
   nrf24l01p_cmd_write();
 
-  /* TODO: refer to doc */
+  /* TODO: pulse ce to start transmission, refer to doc */
   NRF24L01P_IO_CE_PORT |= NRF24L01P_IO_CE_MASK;
   wait_5ms();
   NRF24L01P_IO_CE_PORT &= ~NRF24L01P_IO_CE_MASK;
+
+  /* TODO: wait for transfer to complete */
+  wait_5ms();
 }
 
 static uint8_t nrf24l01p_read_irq(void)
@@ -777,6 +783,7 @@ int main(void)
 
     nrf24l01p_rx_to_tx();
     nrf24l01p_write_tx_noack();
+    /* nrf24l01p_write_tx(); */
     nrf24l01p_standby_to_rx();
   }
   uart_write((uint8_t*)"\r\n", 2);
