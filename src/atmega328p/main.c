@@ -221,6 +221,12 @@ static inline void spi_cs_high(void)
 #define NRF24L01P_ADDR_WIDTH 3
 static const uint8_t NRF24L01P_LADDR[] = { 0x2a, 0x2a, 0x2a };
 
+static void wait_50us(void)
+{
+  volatile uint16_t x;
+  for (x = 0; x < 500; ++x) __asm__ __volatile__ ("nop\n\t");
+}
+
 static void wait_130us(void)
 {
   volatile uint16_t x;
@@ -678,47 +684,46 @@ static void nrf24l01p_read_rx(void)
   /* payload and length available in nrf24l01p_cmd_xxx */
 }
 
-static void nrf24l01p_write_tx(void)
-{
-  /* send one payload, of size NRF24L01P_PAYLOAD_WIDTH */
-
-  /* this clears irqs */
-  nrf24l01p_read_irq();
-
-  nrf24l01p_cmd_make(NRF24L01P_CMD_W_TX_PAYLOAD, NRF24L01P_PAYLOAD_WIDTH);
-  nrf24l01p_cmd_write();
-
-  /* FIXME, has to write twice */
-  nrf24l01p_cmd_write();
-  /* FIXME, has to write twice */
-
-  /* TODO: pulse ce to start transmission, refer to doc */
-  NRF24L01P_IO_CE_PORT |= NRF24L01P_IO_CE_MASK;
-  wait_130us();
-  NRF24L01P_IO_CE_PORT &= ~NRF24L01P_IO_CE_MASK;
-}
-
 static inline void nrf24l01p_enable_tx_noack(void)
 {
   nrf24l01p_or_reg8(NRF24L01P_REG_FEATURE, 1 << 0);
 }
 
-static void nrf24l01p_write_tx_noack(void)
+static void nrf24l01p_write_tx_common(uint8_t op)
 {
   /* this clears any pending irqs */
   nrf24l01p_read_irq();
 
-  nrf24l01p_cmd_make(NRF24L01P_CMD_W_TX_PAYLOAD_NOACK, NRF24L01P_PAYLOAD_WIDTH);
+  /* from appendix a, write tx address, then payload data */
+#if 0
+  /* inlined */
+  nrf24l01p_cmd_make(NRF24L01P_CMD_W_REG | NRF24L01P_REG_TX_ADDR, 5);
+  nrf24l01p_cmd_prolog();
+  spi_write(nrf24l01p_tx_addr, nrf24l01p_cmd_len);
+  spi_cs_low();
+#endif
+
+  nrf24l01p_cmd_make(op, NRF24L01P_PAYLOAD_WIDTH);
   nrf24l01p_cmd_write();
 
-  /* FIXME, has to write twice */
+  /* FIXME, must be done twice */
   nrf24l01p_cmd_write();
-  /* FIXME, has to write twice */
+  /* FIXME, must be done twice */
 
   /* TODO: pulse ce to start transmission, refer to doc */
   NRF24L01P_IO_CE_PORT |= NRF24L01P_IO_CE_MASK;
-  wait_130us();
+  wait_50us();
   NRF24L01P_IO_CE_PORT &= ~NRF24L01P_IO_CE_MASK;
+}
+
+static inline void nrf24l01p_write_tx_noack(void)
+{
+  nrf24l01p_write_tx_common(NRF24L01P_CMD_W_TX_PAYLOAD_NOACK);
+}
+
+static inline void nrf24l01p_write_tx(void)
+{
+  nrf24l01p_write_tx_common(NRF24L01P_CMD_W_TX_PAYLOAD);
 }
 
 static inline uint8_t nrf24l01p_is_carrier(void)
