@@ -439,10 +439,13 @@ static inline void nrf24l01p_set_tx(void)
   /* warning: irq are active low, clearing mask bit enable */
 
   static const uint8_t and_mask = ~(NRF24L01P_IRQ_MASK_ALL | (3 << 0));
-  static const uint8_t or_mask = NRF24L01P_IRQ_MASK_ALL | (1 << 1);
+  static const uint8_t or_mask =
+    NRF24L01P_IRQ_MASK_MAX_RT | NRF24L01P_IRQ_MASK_RX_DR | (1 << 1);
+
+  /* NOTE: ce must be kept low for standby until actual transmission */
+  NRF24L01P_IO_CE_PORT &= ~NRF24L01P_IO_CE_MASK;
 
   nrf24l01p_and_or_reg8(NRF24L01P_REG_CONFIG, and_mask, or_mask);
-  NRF24L01P_IO_CE_PORT |= NRF24L01P_IO_CE_MASK;
 }
 
 static inline void nrf24l01p_set_rx(void)
@@ -545,8 +548,8 @@ static void nrf24l01p_setup(void)
   /* 2400 mhz channel */
   nrf24l01p_write_reg8(NRF24L01P_REG_RF_CH, 0);
 
-  /* 2mpbs, 0dbm gain */
-  nrf24l01p_write_reg8(NRF24L01P_REG_RF_SETUP, 0x0e);
+  /* 2mpbs, 0dbm gain, setup LNA */
+  nrf24l01p_write_reg8(NRF24L01P_REG_RF_SETUP, 0x0f);
 
   /* pipe0 payload size */
   nrf24l01p_write_reg8(NRF24L01P_REG_RX_PW_P0, NRF24L01P_PAYLOAD_WIDTH);
@@ -656,9 +659,6 @@ static void nrf24l01p_write_tx(void)
   NRF24L01P_IO_CE_PORT |= NRF24L01P_IO_CE_MASK;
   wait_5ms();
   NRF24L01P_IO_CE_PORT &= ~NRF24L01P_IO_CE_MASK;
-
-  /* TODO: wait for transfer to complete */
-  wait_5ms();
 }
 
 static inline void nrf24l01p_enable_tx_noack(void)
@@ -676,31 +676,35 @@ static void nrf24l01p_write_tx_noack(void)
   NRF24L01P_IO_CE_PORT |= NRF24L01P_IO_CE_MASK;
   wait_5ms();
   NRF24L01P_IO_CE_PORT &= ~NRF24L01P_IO_CE_MASK;
-
-  /* TODO: wait for transfer to complete */
-  wait_5ms();
 }
 
 static uint8_t nrf24l01p_read_irq(void)
 {
   /* read and reset the irq bits if required */
 
+  uint8_t x = 0;
+
   /* irq signal is active low */
   if ((NRF24L01P_IO_IRQ_PIN & NRF24L01P_IO_IRQ_MASK) == 0)
   {
-    const uint8_t x = nrf24l01p_read_status();
+    x = nrf24l01p_read_status();
     /* reset irq by writing back 1s to the source bits */
     nrf24l01p_write_status(x);
-    return x;
   }
 
-  return 0;
+  return x;
 }
 
 static inline unsigned int nrf24l01p_is_rx_irq(void)
 {
   /* return non zero if rx related interrupt */
   return nrf24l01p_read_irq() & NRF24L01P_IRQ_MASK_RX_DR;
+}
+
+static inline unsigned int nrf24l01p_is_tx_irq(void)
+{
+  /* return non zero if tx related interrupt */
+  return nrf24l01p_read_irq() & NRF24L01P_IRQ_MASK_TX_DS;
 }
 
 static inline uint8_t nrf24l01p_is_carrier(void)
@@ -779,11 +783,38 @@ int main(void)
   nrf24l01p_enable_tx_noack();
 
   nrf24l01p_powerdown_to_standby();
-  nrf24l01p_standby_to_rx();
 
   uart_write((uint8_t*)"starting\r\n", 10);
 
+#if 1
+  nrf24l01p_standby_to_tx();
+
+  if (nrf24l01p_is_tx_empty() == 0) nrf24l01p_flush_tx();
+  nrf24l01p_cmd_buf[0] = '*';
+  nrf24l01p_cmd_buf[1] = '*';
+  nrf24l01p_cmd_buf[2] = '*';
+  nrf24l01p_cmd_buf[3] = '*';
+  nrf24l01p_write_tx_noack();
+  while (nrf24l01p_is_tx_irq() == 0) ;
+
+  uart_write((uint8_t*)"first\r\n", 7);
+
+  if (nrf24l01p_is_tx_empty() == 0) nrf24l01p_flush_tx();
+  nrf24l01p_cmd_buf[0] = 'a';
+  nrf24l01p_cmd_buf[1] = 'b';
+  nrf24l01p_cmd_buf[2] = 'c';
+  nrf24l01p_cmd_buf[3] = 'd';
+  nrf24l01p_write_tx_noack();
+  while (nrf24l01p_is_tx_irq() == 0) ;
+
+  uart_write((uint8_t*)"second\r\n", 8);
+
+  /* still in standby mode */
+#endif
+
  redo_receive:
+
+  nrf24l01p_standby_to_rx();
 
   if (nrf24l01p_is_rx_full()) nrf24l01p_flush_rx();
 
@@ -798,19 +829,23 @@ int main(void)
   else
   {
     uart_write((uint8_t*)nrf24l01p_cmd_buf, nrf24l01p_cmd_len);
+
+    /* result in setting standby mode */
     nrf24l01p_rx_to_tx();
 
+    /* push into the tx fifo, then pulse ce to send */
     if (nrf24l01p_is_tx_empty() == 0) nrf24l01p_flush_tx();
-
     nrf24l01p_cmd_buf[0] = '*';
     nrf24l01p_cmd_buf[1] = '*';
     nrf24l01p_cmd_buf[2] = '*';
     nrf24l01p_cmd_buf[3] = '*';
     nrf24l01p_write_tx_noack();
+    while (nrf24l01p_is_tx_irq() == 0) ;
 
-    if (nrf24l01p_is_tx_empty() == 0) uart_write((uint8_t*)"\r\nne", 4);
-
-    nrf24l01p_standby_to_rx();
+    if (nrf24l01p_is_tx_empty() == 0)
+      uart_write((uint8_t*)"\r\nne", 4);
+    else
+      uart_write((uint8_t*)"\r\nNE", 4);
   }
   uart_write((uint8_t*)"\r\n", 2);
 
