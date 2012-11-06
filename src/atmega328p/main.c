@@ -635,7 +635,7 @@ static void nrf24l01p_disable_art(void)
   /* disable automatic retransmission */
 }
 
-static uint8_t nrf24l01p_read_irq(void)
+static uint8_t nrf24l01p_read_irqs(void)
 {
   /* read and reset the irq bits if required */
 
@@ -655,13 +655,19 @@ static uint8_t nrf24l01p_read_irq(void)
 static inline unsigned int nrf24l01p_is_rx_irq(void)
 {
   /* return non zero if rx related interrupt */
-  return nrf24l01p_read_irq() & NRF24L01P_IRQ_MASK_RX_DR;
+  return nrf24l01p_read_irqs() & NRF24L01P_IRQ_MASK_RX_DR;
 }
 
 static inline unsigned int nrf24l01p_is_tx_irq(void)
 {
   /* return non zero if tx related interrupt */
-  return nrf24l01p_read_irq() & NRF24L01P_IRQ_MASK_TX_DS;
+  return nrf24l01p_read_irqs() & NRF24L01P_IRQ_MASK_TX_DS;
+}
+
+static inline void nrf24l01p_clear_irqs(void)
+{
+  /* reset irq by writing back 1s to the source bits */
+  nrf24l01p_write_status(nrf24l01p_read_status());
 }
 
 static void nrf24l01p_read_rx(void)
@@ -694,17 +700,10 @@ static inline void nrf24l01p_enable_tx_noack(void)
 
 static void nrf24l01p_write_tx_common(uint8_t op)
 {
-  /* this clears any pending irqs */
-  nrf24l01p_read_irq();
-
-  /* from appendix a, write tx address, then payload data */
-#if 0
-  /* inlined */
-  nrf24l01p_cmd_make(NRF24L01P_CMD_W_REG | NRF24L01P_REG_TX_ADDR, 5);
-  nrf24l01p_cmd_prolog();
-  spi_write(nrf24l01p_tx_addr, nrf24l01p_cmd_len);
-  spi_cs_low();
-#endif
+  /* cmd_buf[0] is overwritten by nrf24l01p_nclear_irqs */
+  const uint8_t saved_uint8 = nrf24l01p_cmd_buf[0];
+  nrf24l01p_clear_irqs();
+  nrf24l01p_cmd_buf[0] = saved_uint8;
 
   nrf24l01p_cmd_make(op, NRF24L01P_PAYLOAD_WIDTH);
   nrf24l01p_cmd_write();
@@ -812,10 +811,10 @@ int main(void)
   nrf24l01p_standby_to_tx();
 
   if (nrf24l01p_is_tx_empty() == 0) nrf24l01p_flush_tx();
-  nrf24l01p_cmd_buf[0] = '*';
-  nrf24l01p_cmd_buf[1] = '*';
-  nrf24l01p_cmd_buf[2] = '*';
-  nrf24l01p_cmd_buf[3] = '*';
+  nrf24l01p_cmd_buf[0] = '0';
+  nrf24l01p_cmd_buf[1] = '1';
+  nrf24l01p_cmd_buf[2] = '2';
+  nrf24l01p_cmd_buf[3] = '3';
   nrf24l01p_write_tx_noack();
   while (nrf24l01p_is_tx_irq() == 0) ;
 
