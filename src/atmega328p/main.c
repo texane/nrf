@@ -340,7 +340,9 @@ static uint8_t nrf24l01p_cmd_len;
 
 static void nrf24l01p_cmd_prolog(void)
 {
+  /* in case it is already selected */
   spi_cs_high();
+
   spi_cs_low();
   spi_write_uint8(nrf24l01p_cmd_op);
 }
@@ -350,14 +352,16 @@ static void nrf24l01p_cmd_write(void)
   /* assume op, buf, len filled */
   nrf24l01p_cmd_prolog();
   spi_write(nrf24l01p_cmd_buf, nrf24l01p_cmd_len);
-  spi_cs_low();
+  /* deselecting the chip is needed */
+  spi_cs_high();
 }
 
 static void nrf24l01p_cmd_read(void)
 {
   nrf24l01p_cmd_prolog();
   spi_read(nrf24l01p_cmd_buf, nrf24l01p_cmd_len);
-  spi_cs_low();
+  /* deselecting the chip is needed */
+  spi_cs_high();
 }
 
 static inline void nrf24l01p_cmd_make(uint8_t op, uint8_t len)
@@ -708,11 +712,6 @@ static void nrf24l01p_write_tx_common(uint8_t op)
   nrf24l01p_cmd_make(op, NRF24L01P_PAYLOAD_WIDTH);
   nrf24l01p_cmd_write();
 
-  /* FIXME, must be done twice */
-  nrf24l01p_cmd_write();
-  /* FIXME, must be done twice */
-
-  /* TODO: pulse ce to start transmission, refer to doc */
   NRF24L01P_IO_CE_PORT |= NRF24L01P_IO_CE_MASK;
   wait_50us();
   NRF24L01P_IO_CE_PORT &= ~NRF24L01P_IO_CE_MASK;
@@ -849,24 +848,32 @@ int main(void)
   }
   else
   {
+    uint8_t saved_buf[4];
+    uint8_t i;
+
     uart_write((uint8_t*)nrf24l01p_cmd_buf, nrf24l01p_cmd_len);
+
+    /* save before new commands */
+    for (i = 0; i < nrf24l01p_cmd_len; ++i)
+      saved_buf[i] = nrf24l01p_cmd_buf[i];
 
     /* result in setting standby mode */
     nrf24l01p_rx_to_tx();
 
+    if (nrf24l01p_is_tx_empty() == 0)
+    {
+      uart_write((uint8_t*)"\r\nNE", 4);
+      nrf24l01p_flush_tx();
+    }
+
+    /* restore saved buf */
+    nrf24l01p_cmd_len = i;
+    for (i = 0; i < nrf24l01p_cmd_len; ++i)
+      nrf24l01p_cmd_buf[i] = saved_buf[i];
+
     /* push into the tx fifo, then pulse ce to send */
-    if (nrf24l01p_is_tx_empty() == 0) nrf24l01p_flush_tx();
-    nrf24l01p_cmd_buf[0] = 'a';
-    nrf24l01p_cmd_buf[1] = 'b';
-    nrf24l01p_cmd_buf[2] = 'c';
-    nrf24l01p_cmd_buf[3] = 'd';
     nrf24l01p_write_tx_noack();
     while (nrf24l01p_is_tx_irq() == 0) ;
-
-    if (nrf24l01p_is_tx_empty() == 0)
-      uart_write((uint8_t*)"\r\nne", 4);
-    else
-      uart_write((uint8_t*)"\r\nNE", 4);
   }
   uart_write((uint8_t*)"\r\n", 2);
 
