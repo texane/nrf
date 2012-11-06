@@ -1,5 +1,8 @@
 /* nrf24l01p library */
 
+/* TODO: payload must be pushed twice in tx fifo, to fix. */
+/* TODO: remove unecessary delays. */
+
 #include <stdint.h>
 #include <avr/io.h>
 #include <stdint.h>
