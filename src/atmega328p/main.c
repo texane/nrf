@@ -59,6 +59,12 @@ static void uart_write(uint8_t* s, uint8_t n)
   while ((UCSR0A & (1 << 6)) == 0) ;
 }
 
+static uint8_t uart_read_uint8(void)
+{
+  while ((UCSR0A & (1 << 7)) == 0) ;
+  return UDR0;
+}
+
 static inline uint8_t nibble(uint32_t x, uint8_t i)
 {
   return (x >> (i * 4)) & 0xf;
