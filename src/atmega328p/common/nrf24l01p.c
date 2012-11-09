@@ -100,6 +100,7 @@ static uint8_t nrf24l01p_cmd_len;
 #define NRF24L01P_CMD_W_TX_PAYLOAD_NOACK 0xb0
 #define NRF24L01P_CMD_FLUSH_TX 0xe1
 #define NRF24L01P_CMD_FLUSH_RX 0xe2
+#define NRF24L01P_CMD_REUSE_TX_PL 0xe3
 #define NRF24L01P_CMD_NOP 0xff
 
 /* registers */
@@ -521,6 +522,14 @@ static inline void nrf24l01p_write_tx_noack(void)
 static inline void nrf24l01p_write_tx(void)
 {
   nrf24l01p_write_tx_common(NRF24L01P_CMD_W_TX_PAYLOAD);
+}
+
+static void nrf24l01p_send_tx_reuse(void)
+{
+  /* TODO */
+  /* split write_tx_common into write_tx_fifo and send_tx_fifo */
+  /* rename write_tx_xxx into send_tx_xxx */
+  /* use write_tx_fifo and CMD_REUSE_PL to implement send_tx_reuse */
 }
 
 static inline uint8_t nrf24l01p_is_carrier(void)
