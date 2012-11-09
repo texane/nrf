@@ -18,6 +18,8 @@ ISR(TIMER1_COMPA_vect)
 
 int main(void)
 {
+  uint16_t counter;
+
   uart_setup();
 
   /* setup timer1, normal mode, interrupt on match 0x8000 */
@@ -34,16 +36,20 @@ int main(void)
 
   /* sparkfun usb serial board configuration */
   /* NOTE: nrf24l01p_enable_crc8(); for nrf24l01p board */
-  nrf24l01p_enable_crc16();
+  /* nrf24l01p_enable_crc16(); */
+  nrf24l01p_disable_crc();
   /* auto ack disabled */
   /* auto retransmit disabled */
   /* 4 bytes payload */
   /* 1mbps, 0dbm */
-  nrf24l01p_set_rate(NRF24L01P_RATE_1MBPS);
+  /* nrf24l01p_set_rate(NRF24L01P_RATE_1MBPS); */
+  nrf24l01p_set_rate(NRF24L01P_RATE_2MBPS);
+  /* nrf24l01p_set_rate(NRF24L01P_RATE_250KBPS); */
   /* channel 2 */
   nrf24l01p_set_chan(2);
   /* 5 bytes addr width */
-  nrf24l01p_set_addr_width(NRF24L01P_ADDR_WIDTH_5);
+  /* nrf24l01p_set_addr_width(NRF24L01P_ADDR_WIDTH_5); */
+  nrf24l01p_set_addr_width(NRF24L01P_ADDR_WIDTH_3);
   /* rx address */
   nrf24l01p_cmd_buf[0] = 0xe7;
   nrf24l01p_cmd_buf[1] = 0xe7;
@@ -67,6 +73,7 @@ int main(void)
 
  redo_transmit:
 
+  counter = 0;
   is_timer1_irq = 0;
 
   uart_write((uint8_t*)"press space\r\n", 13);
@@ -88,8 +95,14 @@ int main(void)
   {
     nrf24l01p_write_tx_noack();
     while (nrf24l01p_is_tx_irq() == 0) ;
+    ++counter;
     if (is_timer1_irq == 1) break ;
   }
+
+  /* print counter */
+  uart_write((uint8_t*)"counter: ", 9);
+  uart_write((uint8_t*)uint16_to_string(counter), 4);
+  uart_write((uint8_t*)"\r\n", 2);
 
   goto redo_transmit;
 

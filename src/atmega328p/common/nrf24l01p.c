@@ -124,7 +124,7 @@ static inline void spi_cs_high(void)
 #define NRF24L01P_IO_IRQ_PIN PINB
 
 /* payload size, in bytes */
-#define NRF24L01P_PAYLOAD_WIDTH 4
+#define NRF24L01P_PAYLOAD_WIDTH 32
 
 /* local addresses */
 #define NRF24L01P_ADDR_WIDTH 3

@@ -38,16 +38,20 @@ int main(void)
 
   /* sparkfun usb serial board configuration */
   /* NOTE: nrf24l01p_enable_crc8(); for nrf24l01p board */
-  nrf24l01p_enable_crc16();
+  /* nrf24l01p_enable_crc16(); */
+  nrf24l01p_disable_crc();
   /* auto ack disabled */
   /* auto retransmit disabled */
   /* 4 bytes payload */
   /* 1mbps, 0dbm */
-  nrf24l01p_set_rate(NRF24L01P_RATE_1MBPS);
+  /* nrf24l01p_set_rate(NRF24L01P_RATE_1MBPS); */
+  nrf24l01p_set_rate(NRF24L01P_RATE_2MBPS);
+  /* nrf24l01p_set_rate(NRF24L01P_RATE_250KBPS); */
   /* channel 2 */
   nrf24l01p_set_chan(2);
   /* 5 bytes addr width */
-  nrf24l01p_set_addr_width(NRF24L01P_ADDR_WIDTH_5);
+  /* nrf24l01p_set_addr_width(NRF24L01P_ADDR_WIDTH_5); */
+  nrf24l01p_set_addr_width(NRF24L01P_ADDR_WIDTH_3);
   /* rx address */
   nrf24l01p_cmd_buf[0] = 0xe7;
   nrf24l01p_cmd_buf[1] = 0xe7;
