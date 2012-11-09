@@ -1,3 +1,7 @@
+#ifndef SPI_C_INCLUDED
+#define SPI_C_INCLUDED 1
+
+
 #include <stdint.h>
 #include <avr/io.h>
 
@@ -93,3 +97,6 @@ static void spi_read(uint8_t* s, uint8_t len)
 {
   for (; len; --len, ++s) *s = spi_read_uint8();
 }
+
+
+#endif /* SPI_C_INCLUDED */
