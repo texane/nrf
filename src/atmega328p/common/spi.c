@@ -6,10 +6,6 @@ static inline void spi_setup_master(void)
 {
   /* doc8161.pdf, ch.18 */
 
-  /* cs, pb2 */
-  DDRB |= (1 << 2);
-  PORTB |= 1 << 2;
-
   /* spi output pins: sck pb5, mosi pb3 */
   DDRB |= (1 << 5) | (1 << 3);
 
@@ -96,14 +92,4 @@ static inline uint8_t spi_read_uint8(void)
 static void spi_read(uint8_t* s, uint8_t len)
 {
   for (; len; --len, ++s) *s = spi_read_uint8();
-}
-
-static inline void spi_cs_low(void)
-{
-  PORTB &= ~(1 << 2);
-}
-
-static inline void spi_cs_high(void)
-{
-  PORTB |= 1 << 2;
 }

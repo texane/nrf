@@ -155,12 +155,23 @@ static uint8_t nrf24l01p_cmd_len;
 #define NRF24L01P_IRQ_MASK_MAX_RT (1 << 4)
 #define NRF24L01P_IRQ_MASK_ALL (7 << 4)
 
+
+static inline void nrf24l01p_spi_cs_low(void)
+{
+  PORTB &= ~(1 << 2);
+}
+
+static inline void nrf24l01p_spi_cs_high(void)
+{
+  PORTB |= 1 << 2;
+}
+
 static void nrf24l01p_cmd_prolog(void)
 {
   /* in case it is already selected */
-  spi_cs_high();
+  nrf24l01p_spi_cs_high();
 
-  spi_cs_low();
+  nrf24l01p_spi_cs_low();
   spi_write_uint8(nrf24l01p_cmd_op);
 }
 
@@ -170,7 +181,7 @@ static void nrf24l01p_cmd_write(void)
   nrf24l01p_cmd_prolog();
   spi_write(nrf24l01p_cmd_buf, nrf24l01p_cmd_len);
   /* deselecting the chip is needed */
-  spi_cs_high();
+  nrf24l01p_spi_cs_high();
 }
 
 static void nrf24l01p_cmd_read(void)
@@ -178,7 +189,7 @@ static void nrf24l01p_cmd_read(void)
   nrf24l01p_cmd_prolog();
   spi_read(nrf24l01p_cmd_buf, nrf24l01p_cmd_len);
   /* deselecting the chip is needed */
-  spi_cs_high();
+  nrf24l01p_spi_cs_high();
 }
 
 static inline void nrf24l01p_cmd_make(uint8_t op, uint8_t len)
@@ -326,6 +337,10 @@ static void nrf24l01p_setup(void)
   /* setup spi */
   spi_setup_master();
   spi_set_sck_freq(SPI_SCK_FREQ_FOSC2);
+
+  /* spi cs, pb2 */
+  DDRB |= (1 << 2);
+  nrf24l01p_spi_cs_high();
 
   /* pinouts */
   NRF24L01P_IO_CE_DDR |= NRF24L01P_IO_CE_MASK;
