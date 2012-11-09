@@ -73,6 +73,12 @@ static inline void spi_write_uint8(uint8_t x)
   while ((SPSR & (1 << SPIF)) == 0) ;
 }
 
+static void spi_write_uint16(uint16_t x)
+{
+  spi_write_uint8((x >> 8) & 0xff);
+  spi_write_uint8((x >> 0) & 0xff);
+}
+
 static void spi_write(const uint8_t* s, uint8_t len)
 {
   for (; len; --len, ++s) spi_write_uint8(*s);
