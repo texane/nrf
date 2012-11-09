@@ -1,8 +1,8 @@
 #include <stdint.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
-#include "../common/nrf24l01p.c"
-#include "../common/uart.c"
+#include "../../common/nrf24l01p.c"
+#include "../../common/uart.c"
 
 
 /* timer1a compare on match handler */
@@ -16,14 +16,16 @@ ISR(TIMER1_COMPA_vect)
 }
 
 
+/* main */
+
 int main(void)
 {
   uint16_t counter;
 
   uart_setup();
 
-  /* setup timer1, normal mode, interrupt on match 0x8000 */
-  OCR1A = 0x8000;
+  /* setup timer1, normal mode, interrupt on match 0xffff */
+  OCR1A = 0xffff;
   TCCR1A = 0;
   TCCR1B = 0;
   TCCR1C = 0;
@@ -69,9 +71,9 @@ int main(void)
 
   nrf24l01p_powerdown_to_standby();
 
-  uart_write((uint8_t*)"tx side\r\n", 9);
+  uart_write((uint8_t*)"rx side\r\n", 9);
 
- redo_transmit:
+ redo_receive:
 
   counter = 0;
   is_timer1_irq = 0;
@@ -80,23 +82,31 @@ int main(void)
   uart_read_uint8();
   uart_write((uint8_t*)"starting\r\n", 10);
 
-  nrf24l01p_standby_to_tx();
+  nrf24l01p_standby_to_rx();
 
-  if (nrf24l01p_is_tx_empty() == 0) nrf24l01p_flush_tx();
+  /* wait for the starting packet */
+  if (nrf24l01p_is_rx_full()) nrf24l01p_flush_rx();
+  while (nrf24l01p_is_rx_irq() == 0) ;
+  nrf24l01p_read_rx();
 
   /* clock source disabled, safe to access 16 bits counter */
   TCNT1 = 0;
 
-  /* prescaler set to 1024 */
-  /* interrupt every 2.01s (match on 0x8000) */
-  TCCR1B = 5 << 0;
+  /* prescaler set to 256 */
+  /* interrupt every 16000000 / (65535 * 256) = 0.954 s */
+  TCCR1B = 1 << 2;
 
   while (1)
   {
-    nrf24l01p_write_tx_noack();
-    while (nrf24l01p_is_tx_irq() == 0) ;
-    ++counter;
-    if (is_timer1_irq == 1) break ;
+    if (is_timer1_irq == 1)
+    {
+      break ;
+    }
+    else if (nrf24l01p_is_rx_irq())
+    {
+      nrf24l01p_read_rx();
+      ++counter;
+    }
   }
 
   /* print counter */
@@ -104,7 +114,10 @@ int main(void)
   uart_write((uint8_t*)uint16_to_string(counter), 4);
   uart_write((uint8_t*)"\r\n", 2);
 
-  goto redo_transmit;
+  /* still in rx mode */
+  nrf24l01p_set_standby();
+
+  goto redo_receive;
 
   return 0;
 }
