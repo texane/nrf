@@ -24,25 +24,43 @@ static const uint8_t NRF24L01P_LADDR[] = { 0x2a, 0x2a, 0x2a };
 
 static void wait_50us(void)
 {
-  volatile uint16_t x;
-  for (x = 0; x < 500; ++x) __asm__ __volatile__ ("nop\n\t");
+  /* 50 us is 800 cycles at 16mhz */
+
+  register uint8_t i;
+
+  for (i = 0; i != 80; ++i)
+  {
+#if 0 /* useless since 3 more insn due to loop */
+    __asm__ __volatile__ ("nop\n\t");
+    __asm__ __volatile__ ("nop\n\t");
+    __asm__ __volatile__ ("nop\n\t");
+#endif
+    __asm__ __volatile__ ("nop\n\t");
+    __asm__ __volatile__ ("nop\n\t");
+    __asm__ __volatile__ ("nop\n\t");
+    __asm__ __volatile__ ("nop\n\t");
+    __asm__ __volatile__ ("nop\n\t");
+    __asm__ __volatile__ ("nop\n\t");
+    __asm__ __volatile__ ("nop\n\t");
+  }
 }
 
 static void wait_130us(void)
 {
-  volatile uint16_t x;
-  for (x = 0; x < 2000; ++x) __asm__ __volatile__ ("nop\n\t");
+  wait_50us();
+  wait_50us();
+  wait_50us();
 }
 
 static void wait_5ms(void)
 {
-  volatile uint8_t x;
+  uint8_t x;
   for (x = 0; x < 40; ++x) wait_130us();
 }
 
 static void wait_100ms(void)
 {
-  volatile uint8_t x;
+  uint8_t x;
   for (x = 0; x < 20; ++x) wait_5ms();
 }
 
@@ -510,6 +528,7 @@ static void nrf24l01p_write_tx_common(uint8_t op)
   nrf24l01p_cmd_write();
 
   NRF24L01P_IO_CE_PORT |= NRF24L01P_IO_CE_MASK;
+  /* for high tx rate, keep this delay as short as possible */
   wait_50us();
   NRF24L01P_IO_CE_PORT &= ~NRF24L01P_IO_CE_MASK;
 }
