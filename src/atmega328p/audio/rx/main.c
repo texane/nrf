@@ -56,17 +56,6 @@ static inline uint8_t fifo_read_uint8(void)
 }
 
 
-/* dac routines */
-
-static void dac_setup(void)
-{
-}
-
-static void dac_write_uint8(uint8_t x)
-{
-}
-
-
 /* timer1a compare on match handler */
 
 ISR(TIMER1_COMPA_vect)
@@ -78,7 +67,7 @@ ISR(TIMER1_COMPA_vect)
   /* never accesses an invalid one */
   if (fifo_is_empty() == 0) x = fifo_read_uint8();
 
-  dac_write_uint8(x);
+  dac7554_write((uint16_t)x, 0);
 }
 
 static void on_nrf24l01p_irq(void)
@@ -95,7 +84,7 @@ int main(void)
 {
   uart_setup();
   fifo_setup();
-  dac_setup();
+  dac7554_setup();
 
   /* setup timer1, ctc mode, interrupt on match 400 */
   OCR1A = 400;
