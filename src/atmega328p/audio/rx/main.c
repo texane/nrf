@@ -52,7 +52,8 @@ static inline uint8_t fifo_is_empty(void)
 
 static inline uint8_t fifo_read_uint8(void)
 {
-  return 0;
+  /* index wrapping automatically handled */
+  return fifo.buf[fifo.r++];
 }
 
 
