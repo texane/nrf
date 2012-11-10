@@ -84,6 +84,10 @@ static void on_nrf24l01p_irq(void)
 
 int main(void)
 {
+  /* setup spi first */
+  spi_setup_master();
+  spi_set_sck_freq(SPI_SCK_FREQ_FOSC2);
+
   nrf24l01p_setup();
 
   /* sparkfun usb serial board configuration */

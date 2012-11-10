@@ -53,7 +53,9 @@ ISR(TIMER1_COMPA_vect)
 
 int main(void)
 {
-  uart_setup();
+  /* setup spi first */
+  spi_setup_master();
+  spi_set_sck_freq(SPI_SCK_FREQ_FOSC2);
 
   nrf24l01p_setup();
 
@@ -91,6 +93,8 @@ int main(void)
   nrf24l01p_enable_tx_noack();
 
   nrf24l01p_powerdown_to_standby();
+
+  uart_setup();
 
   uart_write((uint8_t*)"tx side\r\n", 9);
   uart_write((uint8_t*)"press space\r\n", 13);

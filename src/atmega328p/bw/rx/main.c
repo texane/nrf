@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
+#include "../../common/spi.c"
 #include "../../common/nrf24l01p.c"
 #include "../../common/uart.c"
 
@@ -21,6 +22,10 @@ ISR(TIMER1_COMPA_vect)
 int main(void)
 {
   uint16_t counter;
+
+  /* setup spi first */
+  spi_setup_master();
+  spi_set_sck_freq(SPI_SCK_FREQ_FOSC2);
 
   uart_setup();
 

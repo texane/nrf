@@ -158,12 +158,13 @@ static uint8_t nrf24l01p_cmd_len;
 
 static inline void nrf24l01p_spi_cs_low(void)
 {
-  PORTB &= ~(1 << 2);
+#define NRF24L01P_SPI_CS_MASK (1 << 2)
+  PORTB &= ~NRF24L01P_SPI_CS_MASK;
 }
 
 static inline void nrf24l01p_spi_cs_high(void)
 {
-  PORTB |= 1 << 2;
+  PORTB |= NRF24L01P_SPI_CS_MASK;
 }
 
 static void nrf24l01p_cmd_prolog(void)
@@ -334,14 +335,11 @@ static inline void nrf24l01p_tx_to_rx(void)
 
 static void nrf24l01p_setup(void)
 {
-  /* warning: must be done prior initializing spi */
-  /* spi cs, pb2 */
-  DDRB |= (1 << 2);
-  nrf24l01p_spi_cs_high();
+  /* assume spi initialized */
 
-  /* setup spi */
-  spi_setup_master();
-  spi_set_sck_freq(SPI_SCK_FREQ_FOSC2);
+  /* spi cs, pb2 */
+  DDRB |= NRF24L01P_SPI_CS_MASK;
+  nrf24l01p_spi_cs_high();
 
   /* pinouts */
   NRF24L01P_IO_CE_DDR |= NRF24L01P_IO_CE_MASK;
