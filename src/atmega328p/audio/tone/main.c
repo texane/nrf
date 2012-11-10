@@ -11,8 +11,8 @@ static inline uint8_t q(double x)
 
 int main(int ac, char** av)
 {
-  static const double ftone = 4000;
-  static const double fsampl = 40000;
+  static const double ftone = FTONE;
+  static const double fsampl = FSAMPL;
   static const unsigned int nsampl = 256;
 
   unsigned int i;
