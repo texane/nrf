@@ -334,13 +334,14 @@ static inline void nrf24l01p_tx_to_rx(void)
 
 static void nrf24l01p_setup(void)
 {
-  /* setup spi */
-  spi_setup_master();
-  spi_set_sck_freq(SPI_SCK_FREQ_FOSC2);
-
+  /* warning: must be done prior initializing spi */
   /* spi cs, pb2 */
   DDRB |= (1 << 2);
   nrf24l01p_spi_cs_high();
+
+  /* setup spi */
+  spi_setup_master();
+  spi_set_sck_freq(SPI_SCK_FREQ_FOSC2);
 
   /* pinouts */
   NRF24L01P_IO_CE_DDR |= NRF24L01P_IO_CE_MASK;
