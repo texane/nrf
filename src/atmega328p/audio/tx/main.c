@@ -8,19 +8,43 @@
 
 /* timer1a compare on match handler */
 
-static volatile uint16_t counter;
+/* sine generated for sampling at 40khz */
+static const uint8_t sample_array[256] =
+{
+  0,
+};
+
+static uint8_t sample_index;
 
 ISR(TIMER1_COMPA_vect)
 {
-  ++counter;
+  uint8_t i;
+
+  /* IDEA: fill in main while busy looping */
+  for (i = 0; i < NRF24L01P_PAYLOAD_WIDTH; ++i)
+  {
+    nrf24l01p_cmd_buf[i] = sample_array[sample_index];
+    /* automatic index wrapping */
+    ++sample_index;
+  }
+
+  nrf24l01p_standby_to_tx();
+  nrf24l01p_clear_irqs();
+  nrf24l01p_write_tx_noack();
+
+#if 0
+  /* actual schema */
+  nrf24l01p_standby_to_tx();
+  if (nrf24l01p_is_tx_empty() == 0) nrf24l01p_flush_tx();
+  nrf24l01p_write_tx_noack();
+  while (nrf24l01p_is_tx_irq() == 0) ;
+#endif
 }
 
 
 int main(void)
 {
   uart_setup();
-
-  uart_write((uint8_t*)"tx side\r\n", 9);
 
   nrf24l01p_setup();
 
@@ -64,45 +88,36 @@ int main(void)
   uart_read_uint8();
   uart_write((uint8_t*)"starting\r\n", 10);
 
-  /* setup counter */
-  counter = 0;
+  /* sample index */
+  sample_index = 0;
 
   /* clock source disabled, safe to access 16 bits counter */
   /* setup timer1, ctc mode, interrupt on match 400 */
   TCNT1 = 0;
-  OCR1A = 400;
+  OCR1A = 12800;
   OCR1B = 0xffff;
   TCCR1A = 0;
   TCCR1C = 0;
   TIMSK1 = 1 << 1;
-  /* prescaler set to 1, interrupt on match 400 (40khz) */
+  /* base freq is 40khz, 32 samples per int gives 1.25khz */
+  /* prescaler set to 1, autoclear on interrupt on match */
   TCCR1B = (1 << 3) | (1 << 0);
 
   /* enable interrupts */
   sei();
 
-#if 0
   while (1)
   {
-    nrf24l01p_standby_to_tx();
-    if (nrf24l01p_is_tx_empty() == 0) nrf24l01p_flush_tx();
-
-    nrf24l01p_write_tx_noack();
-    while (nrf24l01p_is_tx_irq() == 0) ;
-  }
-#else
-  while (1)
-  {
+#if 0 /* test, print every 1s using 16 bits counter */
     if (counter >= 40000)
     {
       cli();
       counter = 0;
       sei();
-
       uart_write((uint8_t*)"x\r\n", 3);
     }
+#endif /* test */
   }
-#endif
 
   return 0;
 }
