@@ -7,19 +7,19 @@
 
 static inline void dac7554_sync_low(void)
 {
-#define DAC7554_SYNC_MASK (1 << 0)
-  PORTB &= ~DAC7554_SYNC_MASK;
+#define DAC7554_SYNC_MASK (1 << 2)
+  PORTD &= ~DAC7554_SYNC_MASK;
 }
 
 static inline void dac7554_sync_high(void)
 {
-  PORTB |= DAC7554_SYNC_MASK;
+  PORTD |= DAC7554_SYNC_MASK;
 }
 
 static void dac7554_setup(void)
 {
   /* sync pin controled with PB0, 8 */
-  DDRB |= DAC7554_SYNC_MASK;
+  DDRD |= DAC7554_SYNC_MASK;
   dac7554_sync_high();
 }
 
