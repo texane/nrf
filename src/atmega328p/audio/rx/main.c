@@ -68,7 +68,8 @@ ISR(TIMER1_COMPA_vect)
   /* never accesses an invalid one */
   if (fifo_is_empty() == 0) x = fifo_read_uint8();
 
-  dac7554_write((uint16_t)x, 0);
+  /* 12 bits dac, extend for now */
+  dac7554_write((uint16_t)x << 4, 0);
 }
 
 static void on_nrf24l01p_irq(void)
