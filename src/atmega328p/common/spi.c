@@ -10,6 +10,10 @@ static inline void spi_setup_master(void)
 {
   /* doc8161.pdf, ch.18 */
 
+  /* ss is used by avr spi to determine master */
+  /* set output mode even if pb2 not used by us */
+  DDRB |= (1 << 2);
+
   /* spi output pins: sck pb5, mosi pb3 */
   DDRB |= (1 << 5) | (1 << 3);
 
@@ -23,6 +27,19 @@ static inline void spi_setup_master(void)
 
   /* clear double speed */
   SPSR &= ~(1 << SPI2X);
+}
+
+static inline uint8_t spi_set_cpol(void)
+{
+  const uint8_t spcr = SPCR;
+  SPCR |= (1 << CPOL);
+  return spcr;
+}
+
+static inline void spi_restore_cpol(uint8_t spcr)
+{
+  if (spcr & (1 << CPOL)) SPCR |= 1 << CPOL;
+  else SPCR &= ~(1 << CPOL);
 }
 
 static inline void spi_set_sck_freq(uint8_t x)
