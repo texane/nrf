@@ -84,20 +84,6 @@ static void on_nrf24l01p_irq(void)
 
 int main(void)
 {
-  uart_setup();
-  fifo_setup();
-  dac7554_setup();
-
-  /* setup timer1, ctc mode, interrupt on match 400 */
-  OCR1A = 400;
-  TCCR1A = 0;
-  TCCR1B = 1 << 3;
-  TCCR1C = 0;
-  TIMSK1 = 1 << 1;
-
-  /* enable interrupts */
-  sei();
-
   nrf24l01p_setup();
 
   /* sparkfun usb serial board configuration */
@@ -134,6 +120,22 @@ int main(void)
   nrf24l01p_enable_tx_noack();
 
   nrf24l01p_powerdown_to_standby();
+
+  uart_setup();
+  fifo_setup();
+  dac7554_setup();
+
+  /* setup timer1, ctc mode, interrupt on match 400 */
+  TCNT1 = 0;
+  OCR1A = 400;
+  OCR1B = 0xffff;
+  TCCR1A = 0;
+  TCCR1B = 0;
+  TCCR1C = 0;
+  TIMSK1 = 1 << 1;
+
+  /* enable interrupts */
+  sei();
 
   uart_write((uint8_t*)"rx side\r\n", 9);
   uart_write((uint8_t*)"press space\r\n", 13);
