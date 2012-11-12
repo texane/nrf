@@ -98,6 +98,13 @@ int main(void)
 
   while (1)
   {
+#define CONFIG_CHECK 0
+#if CONFIG_CHECK
+    uint8_t i;
+    for (i = 0; i < NRF24L01P_PAYLOAD_WIDTH; ++i)
+      nrf24l01p_cmd_buf[i] = 0x2a + i;
+#endif
+
     nrf24l01p_write_tx_noack();
     while (nrf24l01p_is_tx_irq() == 0) ;
     ++counter;

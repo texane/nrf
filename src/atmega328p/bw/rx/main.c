@@ -23,6 +23,11 @@ int main(void)
 {
   uint16_t counter;
 
+#define CONFIG_CHECK 0
+#if CONFIG_CHECK
+  uint16_t error;
+#endif
+
   /* setup spi first */
   spi_setup_master();
   spi_set_sck_freq(SPI_SCK_FREQ_FOSC2);
@@ -80,6 +85,9 @@ int main(void)
 
  redo_receive:
 
+#if CONFIG_CHECK
+  error = 0;
+#endif
   counter = 0;
   is_timer1_irq = 0;
 
@@ -109,7 +117,25 @@ int main(void)
     }
     else if (nrf24l01p_is_rx_irq())
     {
+#if CONFIG_CHECK
+      uint8_t i;
+      for (i = 0; i < NRF24L01P_PAYLOAD_WIDTH; ++i)
+	nrf24l01p_cmd_buf[i] = 0x00;
+#endif
+
       nrf24l01p_read_rx();
+
+#if CONFIG_CHECK
+      for (i = 0; i < NRF24L01P_PAYLOAD_WIDTH; ++i)
+      {
+	if (nrf24l01p_cmd_buf[i] != (0x2a + i))
+	{
+	  ++error;
+	  break ;
+	}
+      }
+#endif
+
       ++counter;
     }
   }
@@ -118,6 +144,13 @@ int main(void)
   uart_write((uint8_t*)"counter: ", 9);
   uart_write((uint8_t*)uint16_to_string(counter), 4);
   uart_write((uint8_t*)"\r\n", 2);
+
+#if CONFIG_CHECK
+  /* print error */
+  uart_write((uint8_t*)"error: ", 7);
+  uart_write((uint8_t*)uint16_to_string(error), 4);
+  uart_write((uint8_t*)"\r\n", 2);
+#endif
 
   /* still in rx mode */
   nrf24l01p_set_standby();
