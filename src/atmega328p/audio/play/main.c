@@ -10,9 +10,9 @@
 
 static const uint8_t sample_array[256] =
 {
-#if 1
+#if 0
 # include "../tone/tone_40000_1000.c"
-#elif 0
+#elif 1
 # include "../tone/tone_40000_4000.c"
 #elif 0
 # include "../tone/tone_40000_8000.c"
