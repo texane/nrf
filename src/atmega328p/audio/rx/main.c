@@ -75,7 +75,9 @@ static inline uint8_t fifo_read_uint8(void)
 
 /* timer1a compare on match handler */
 
+#if (DAC7554_SOFTSPI == 0)
 static volatile uint8_t lock_spi = 0;
+#endif
 
 ISR(TIMER1_COMPA_vect)
 {
@@ -89,16 +91,23 @@ ISR(TIMER1_COMPA_vect)
   x = fifo_read_uint8();
 
   /* 12 bits dac, extend for now */
-  if (lock_spi == 0) dac7554_write((uint16_t)x << 4, 0);
+#if (DAC7554_SOFTSPI == 0)
+  if (lock_spi == 0)
+#endif
+    dac7554_write((uint16_t)x << 4, 0);
 }
 
 static inline void on_nrf24l01p_irq(void)
 {
   uint8_t i;
 
+#if (DAC7554_SOFTSPI == 0)
   lock_spi = 1;
+#endif
   nrf24l01p_read_rx();
+#if (DAC7554_SOFTSPI == 0)
   lock_spi = 0;
+#endif
 
   if (nrf24l01p_cmd_len == 0) return ;
 
