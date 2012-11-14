@@ -10,9 +10,9 @@
 
 static const uint8_t sample_array[256] =
 {
-#if 1
+#if 0
 # include "../tone/tone_40000_1000.c"
-#elif 0
+#elif 1
 # include "../tone/tone_40000_4000.c"
 #elif 0
 # include "../tone/tone_40000_8000.c"
@@ -25,11 +25,43 @@ static const uint8_t sample_array[256] =
 
 static uint8_t sample_index;
 
+static inline void nrf24l01p_cmd_write_xxx
+(const uint8_t* buf, uint8_t len)
+{
+  /* assume op, buf, len filled */
+  nrf24l01p_cmd_prolog();
+  spi_write(buf, len);
+  /* deselecting the chip is needed */
+  nrf24l01p_spi_cs_high();
+}
+
+static inline void nrf24l01p_write_tx_common_xxx
+(uint8_t op, const uint8_t* buf, uint8_t len)
+{
+  /* cmd_buf[0] is overwritten by nrf24l01p_nclear_irqs */
+  const uint8_t saved_uint8 = nrf24l01p_cmd_buf[0];
+  nrf24l01p_clear_irqs();
+  nrf24l01p_cmd_buf[0] = saved_uint8;
+
+  nrf24l01p_cmd_make(op, NRF24L01P_PAYLOAD_WIDTH);
+  nrf24l01p_cmd_write_xxx(buf, len);
+
+  NRF24L01P_IO_CE_PORT |= NRF24L01P_IO_CE_MASK;
+  /* for high tx rate, keep this delay as short as possible */
+  wait_50us();
+  NRF24L01P_IO_CE_PORT &= ~NRF24L01P_IO_CE_MASK;
+}
+
+static inline void nrf24l01p_write_tx_noack_xxx
+(const uint8_t* buf, uint8_t len)
+{
+  nrf24l01p_write_tx_common_xxx(NRF24L01P_CMD_W_TX_PAYLOAD_NOACK, buf, len);
+}
+
 ISR(TIMER1_COMPA_vect)
 {
   uint8_t i;
 
-  /* IDEA: fill in main while busy looping */
   for (i = 0; i < NRF24L01P_PAYLOAD_WIDTH; ++i)
   {
     nrf24l01p_cmd_buf[i] = sample_array[sample_index];
@@ -37,17 +69,8 @@ ISR(TIMER1_COMPA_vect)
     ++sample_index;
   }
 
-  nrf24l01p_standby_to_tx();
-  nrf24l01p_clear_irqs();
-  nrf24l01p_write_tx_noack();
-
-#if 0
-  /* actual schema */
-  nrf24l01p_standby_to_tx();
-  if (nrf24l01p_is_tx_empty() == 0) nrf24l01p_flush_tx();
   nrf24l01p_write_tx_noack();
   while (nrf24l01p_is_tx_irq() == 0) ;
-#endif
 }
 
 
@@ -56,6 +79,8 @@ int main(void)
   /* setup spi first */
   spi_setup_master();
   spi_set_sck_freq(SPI_SCK_FREQ_FOSC2);
+
+  uart_setup();
 
   nrf24l01p_setup();
 
@@ -93,8 +118,8 @@ int main(void)
   nrf24l01p_enable_tx_noack();
 
   nrf24l01p_powerdown_to_standby();
-
-  uart_setup();
+  nrf24l01p_standby_to_tx();
+  if (nrf24l01p_is_tx_empty() == 0) nrf24l01p_flush_tx();
 
   uart_write((uint8_t*)"tx side\r\n", 9);
   uart_write((uint8_t*)"press space\r\n", 13);
