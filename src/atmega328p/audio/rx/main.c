@@ -112,8 +112,6 @@ ISR(TIMER1_COMPA_vect)
 
 static inline void on_nrf24l01p_irq(void)
 {
-  uint8_t i;
-
 #if (DAC7554_SOFTSPI == 0)
   lock_spi = 1;
 #endif
@@ -124,11 +122,7 @@ static inline void on_nrf24l01p_irq(void)
 
   if (nrf24l01p_cmd_len == 0) return ;
 
-  for (i = 0; i < NRF24L01P_PAYLOAD_WIDTH; ++i)
-  {
-    fifo.buf[fifo.w] = nrf24l01p_cmd_buf[i];
-    fifo.w = fifo_mod(fifo.w + 1);
-  }
+  fifo_write_payload();
 }
 
 
