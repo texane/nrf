@@ -12,16 +12,21 @@
 typedef struct fifo
 {
   /* read write pointers */
-  volatile uint8_t r;
-  volatile uint8_t w;
+  volatile uint16_t r;
+  volatile uint16_t w;
 
-  /* the fifo is sized to uint8_max + 1 so that */
-  /* index wrapping is automatically handled */
-  uint8_t buf[256];
+  /* must be multiple of payload width, so no overflow */
+  /* must be pow2, so that modulo is an and operation */
+  uint8_t buf[512];
 
 } fifo_t;
 
 static fifo_t fifo;
+
+static inline uint16_t fifo_mod(uint16_t x)
+{
+  return x & ((uint16_t)sizeof(fifo.buf) - (uint16_t)1);
+}
 
 static inline void fifo_setup(void)
 {
@@ -38,10 +43,11 @@ static void fifo_write_payload(void)
   for (i = 0; i < NRF24L01P_PAYLOAD_WIDTH; ++i)
   {
     fifo.buf[fifo.w] = nrf24l01p_cmd_buf[i];
+
     /* note that it is concurrent with reader interrupt */
     /* incrementing fifo.w comes after the actual write */
     /* so that the reader always access a valid location */
-    ++fifo.w;
+    fifo.w = fifo_mod(fifo.w + 1);
   }
 }
 
@@ -50,33 +56,57 @@ static inline uint8_t fifo_is_empty(void)
   return fifo.w == fifo.r;
 }
 
+static inline uint16_t fifo_size(void)
+{
+  /* assume called by writer (main), concurrent with read (isr) */
+  const uint16_t fifo_r  = fifo.r;
+  if (fifo_r < fifo.w) return fifo.w - fifo_r;
+  return sizeof(fifo.buf) - fifo_r + fifo.w;
+}
+
 static inline uint8_t fifo_read_uint8(void)
 {
   /* index wrapping automatically handled */
-  return fifo.buf[fifo.r++];
+  const uint8_t x = fifo.buf[fifo.r];
+  fifo.r = fifo_mod(fifo.r + 1);
+  return x;
 }
 
 
 /* timer1a compare on match handler */
 
+static volatile uint8_t lock_spi = 0;
+
 ISR(TIMER1_COMPA_vect)
 {
-  uint8_t x = 0;
+  uint8_t x;
 
   /* note that this is concurrent with fifo_write */
   /* the reader may miss a location in progress, but */
   /* never accesses an invalid one */
-  if (fifo_is_empty() == 0) x = fifo_read_uint8();
+  if (fifo_is_empty()) return ;
+
+  x = fifo_read_uint8();
 
   /* 12 bits dac, extend for now */
-  dac7554_write((uint16_t)x << 4, 0);
+  if (lock_spi == 0) dac7554_write((uint16_t)x << 4, 0);
 }
 
-static void on_nrf24l01p_irq(void)
+static inline void on_nrf24l01p_irq(void)
 {
-  /* TODO: read_rx could read directly into the fifo */
+  uint8_t i;
+
+  lock_spi = 1;
   nrf24l01p_read_rx();
-  fifo_write_payload();
+  lock_spi = 0;
+
+  if (nrf24l01p_cmd_len == 0) return ;
+
+  for (i = 0; i < NRF24L01P_PAYLOAD_WIDTH; ++i)
+  {
+    fifo.buf[fifo.w] = nrf24l01p_cmd_buf[i];
+    fifo.w = fifo_mod(fifo.w + 1);
+  }
 }
 
 
@@ -87,6 +117,8 @@ int main(void)
   /* setup spi first */
   spi_setup_master();
   spi_set_sck_freq(SPI_SCK_FREQ_FOSC2);
+
+  uart_setup();
 
   nrf24l01p_setup();
 
@@ -125,7 +157,6 @@ int main(void)
 
   nrf24l01p_powerdown_to_standby();
 
-  uart_setup();
   fifo_setup();
   dac7554_setup();
 
@@ -150,6 +181,14 @@ int main(void)
 
   if (nrf24l01p_is_rx_full()) nrf24l01p_flush_rx();
 
+  while (fifo.w < (sizeof(fifo.buf) / 2))
+  {
+    /* wait for irq and process */
+    while (nrf24l01p_is_rx_irq() == 0) ;
+    on_nrf24l01p_irq();
+    /* still in rx mode */
+  }
+
   /* clock source disabled, safe to access 16 bits counter */
   TCNT1 = 0;
   /* prescaler set to 1, interrupt at 40khz */
@@ -157,10 +196,20 @@ int main(void)
 
   while (1)
   {
-    /* wait for irq and process */
-    while (nrf24l01p_is_rx_irq() == 0) ;
-    on_nrf24l01p_irq();
-    /* still in rx mode */
+    if (nrf24l01p_is_rx_irq())
+    {
+      on_nrf24l01p_irq();
+    }
+    else if (nrf24l01p_is_rx_full())
+    {
+      nrf24l01p_flush_rx();
+    }
+#if 0 /* TODO */
+    else if (fifo_is_empty())
+    {
+      /* disable timer1 interrupts */
+    }
+#endif /* TODO */
   }
 
   return 0;
