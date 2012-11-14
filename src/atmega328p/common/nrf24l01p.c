@@ -599,3 +599,33 @@ static inline uint8_t nrf24l01p_is_tx_full(void)
   /* return non zero if tx fifo is full */
   return nrf24l01p_read_fifo_status() & (1 << 5);
 }
+
+
+/* nrf24l01p zero copy routines */
+
+static inline void nrf24l01p_cmd_write_zero(const uint8_t* buf)
+{
+  /* assume op, buf, len filled */
+  nrf24l01p_cmd_prolog();
+  spi_write(buf, NRF24L01P_PAYLOAD_WIDTH);
+  /* deselecting the chip is needed */
+  nrf24l01p_spi_cs_high();
+}
+
+static void nrf24l01p_write_tx_common_zero(uint8_t op, const uint8_t* buf)
+{
+  nrf24l01p_clear_irqs();
+
+  nrf24l01p_cmd_op = op;
+  nrf24l01p_cmd_write_zero(buf);
+
+  NRF24L01P_IO_CE_PORT |= NRF24L01P_IO_CE_MASK;
+  /* for high tx rate, keep this delay as short as possible */
+  wait_50us();
+  NRF24L01P_IO_CE_PORT &= ~NRF24L01P_IO_CE_MASK;
+}
+
+static inline void nrf24l01p_write_tx_noack_zero(const uint8_t* buf)
+{
+  nrf24l01p_write_tx_common_zero(NRF24L01P_CMD_W_TX_PAYLOAD_NOACK, buf);
+}

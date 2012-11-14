@@ -6,7 +6,7 @@
 #include "../../common/uart.c"
 
 
-/* timer1a compare on match handler */
+/* tone generated array */
 
 static const uint8_t sample_array[256] =
 {
@@ -25,38 +25,8 @@ static const uint8_t sample_array[256] =
 
 static uint8_t sample_index;
 
-static inline void nrf24l01p_cmd_write_xxx
-(const uint8_t* buf, uint8_t len)
-{
-  /* assume op, buf, len filled */
-  nrf24l01p_cmd_prolog();
-  spi_write(buf, len);
-  /* deselecting the chip is needed */
-  nrf24l01p_spi_cs_high();
-}
 
-static inline void nrf24l01p_write_tx_common_xxx
-(uint8_t op, const uint8_t* buf, uint8_t len)
-{
-  /* cmd_buf[0] is overwritten by nrf24l01p_nclear_irqs */
-  const uint8_t saved_uint8 = nrf24l01p_cmd_buf[0];
-  nrf24l01p_clear_irqs();
-  nrf24l01p_cmd_buf[0] = saved_uint8;
-
-  nrf24l01p_cmd_make(op, NRF24L01P_PAYLOAD_WIDTH);
-  nrf24l01p_cmd_write_xxx(buf, len);
-
-  NRF24L01P_IO_CE_PORT |= NRF24L01P_IO_CE_MASK;
-  /* for high tx rate, keep this delay as short as possible */
-  wait_50us();
-  NRF24L01P_IO_CE_PORT &= ~NRF24L01P_IO_CE_MASK;
-}
-
-static inline void nrf24l01p_write_tx_noack_xxx
-(const uint8_t* buf, uint8_t len)
-{
-  nrf24l01p_write_tx_common_xxx(NRF24L01P_CMD_W_TX_PAYLOAD_NOACK, buf, len);
-}
+/* timer1a compare on match handler */
 
 ISR(TIMER1_COMPA_vect)
 {
@@ -69,7 +39,7 @@ ISR(TIMER1_COMPA_vect)
     ++sample_index;
   }
 
-  nrf24l01p_write_tx_noack();
+  nrf24l01p_write_tx_noack_zero(sample_array + sample_index);
   while (nrf24l01p_is_tx_irq() == 0) ;
 }
 
