@@ -9,23 +9,36 @@
 
 /* fifo */
 
+/* must be multiple of payload width, so no overflow */
+/* must be pow2, so that modulo is an and operation */
+#define FIFO_BUF_SIZE 256
+
+#if (FIFO_BUF_SIZE <= 256)
+typedef uint8_t fifo_index_t;
+#else
+typedef uint16_t fifo_index_t;
+#endif
+
 typedef struct fifo
 {
   /* read write pointers */
-  volatile uint16_t r;
-  volatile uint16_t w;
+  volatile fifo_index_t r;
+  volatile fifo_index_t w;
 
-  /* must be multiple of payload width, so no overflow */
-  /* must be pow2, so that modulo is an and operation */
-  uint8_t buf[512];
+  uint8_t buf[FIFO_BUF_SIZE];
 
 } fifo_t;
 
 static fifo_t fifo;
 
-static inline uint16_t fifo_mod(uint16_t x)
+static inline fifo_index_t fifo_mod(fifo_index_t x)
 {
-  return x & ((uint16_t)sizeof(fifo.buf) - (uint16_t)1);
+#if (FIFO_BUF_SIZE == 256)
+  /* wrapping automatically handled by 8 bits arithmetic */
+  return x;
+#else
+  return x & ((fifo_index_t)sizeof(fifo.buf) - (fifo_index_t)1);
+#endif
 }
 
 static inline void fifo_setup(void)
@@ -56,10 +69,10 @@ static inline uint8_t fifo_is_empty(void)
   return fifo.w == fifo.r;
 }
 
-static inline uint16_t fifo_size(void)
+static inline fifo_index_t fifo_size(void)
 {
   /* assume called by writer (main), concurrent with read (isr) */
-  const uint16_t fifo_r  = fifo.r;
+  const fifo_index_t fifo_r  = fifo.r;
   if (fifo_r < fifo.w) return fifo.w - fifo_r;
   return sizeof(fifo.buf) - fifo_r + fifo.w;
 }
