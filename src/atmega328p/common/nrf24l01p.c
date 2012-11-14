@@ -629,3 +629,34 @@ static inline void nrf24l01p_write_tx_noack_zero(const uint8_t* buf)
 {
   nrf24l01p_write_tx_common_zero(NRF24L01P_CMD_W_TX_PAYLOAD_NOACK, buf);
 }
+
+static void nrf24l01p_cmd_read_zero(uint8_t* buf)
+{
+  nrf24l01p_cmd_prolog();
+  spi_read(buf, nrf24l01p_cmd_len);
+  /* deselecting the chip is needed */
+  nrf24l01p_spi_cs_high();
+}
+
+static void nrf24l01p_read_rx_zero(uint8_t* buf)
+{
+  /* read the rx fifo top payload */
+
+  /* get top payload width */
+  nrf24l01p_cmd_make(NRF24L01P_CMD_R_RX_PL_WID, 1);
+  nrf24l01p_cmd_read();
+
+  /* datasheet, p58 note says to flush if lt 32 */
+  /* if (n > 32) */
+  if (nrf24l01p_cmd_buf[0] != NRF24L01P_PAYLOAD_WIDTH)
+  {
+    nrf24l01p_flush_rx();
+    nrf24l01p_cmd_len = 0;
+    return ;
+  }
+
+  nrf24l01p_cmd_make(NRF24L01P_CMD_R_RX_PAYLOAD, NRF24L01P_PAYLOAD_WIDTH);
+  nrf24l01p_cmd_read_zero(buf);
+
+  /* payload and length available in nrf24l01p_cmd_xxx */
+}

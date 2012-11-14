@@ -47,7 +47,7 @@ static inline void fifo_setup(void)
   fifo.r = 0;
 }
 
-static void fifo_write_payload(void)
+__attribute__((unused)) static void fifo_write_payload(void)
 {
   /* write payload from nrf24l01p_cmd_buf */
 
@@ -115,14 +115,17 @@ static inline void on_nrf24l01p_irq(void)
 #if (DAC7554_SOFTSPI == 0)
   lock_spi = 1;
 #endif
-  nrf24l01p_read_rx();
+
+  /* no overflow, fifo.w mutiple of payload width */
+  nrf24l01p_read_rx_zero(fifo.buf + fifo.w);
+
 #if (DAC7554_SOFTSPI == 0)
   lock_spi = 0;
 #endif
 
   if (nrf24l01p_cmd_len == 0) return ;
 
-  fifo_write_payload();
+  fifo.w = fifo_mod(fifo.w + NRF24L01P_PAYLOAD_WIDTH);
 }
 
 
