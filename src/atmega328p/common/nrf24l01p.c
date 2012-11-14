@@ -515,8 +515,8 @@ static void nrf24l01p_read_rx(void)
   /* if (n > 32) */
   if (nrf24l01p_cmd_buf[0] != NRF24L01P_PAYLOAD_WIDTH)
   {
-    nrf24l01p_cmd_len = 0;
     nrf24l01p_flush_rx();
+    nrf24l01p_cmd_len = 0;
     return ;
   }
 
