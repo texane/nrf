@@ -4,6 +4,7 @@
 #include "../../common/spi.c"
 #include "../../common/nrf24l01p.c"
 #include "../../common/uart.c"
+#include "adc.c"
 
 
 /* tone generated array */
