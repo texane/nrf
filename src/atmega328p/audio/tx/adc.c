@@ -44,7 +44,7 @@ static void adc_start_free_running(void)
 {
   /* enable adc and free running mode */
   ADCSRB = 0;
-  ADCSRA |= (1 << ADEN) | (1 << ADATE);
+  ADCSRA |= (1 << ADEN) | (1 << ADSC) | (1 << ADATE);
 
   /* the first conversion starts 25 FADC cycles after ADEN set */
   adc_wait_25();
