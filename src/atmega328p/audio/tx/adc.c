@@ -68,5 +68,5 @@ static inline uint16_t adc_read(void)
 {
   /* read adcl first */
   const uint8_t l = ADCL;
-  return (((uint16_t)ADCH) << 8) | (uint16_t)l;
+  return ((((uint16_t)ADCH) << 8) | (uint16_t)l) & 0xfff;
 }

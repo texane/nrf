@@ -7,6 +7,16 @@
 #include "dac7554.c"
 
 
+/* sample type */
+/* must match with tx definition */
+#define CONFIG_SIZEOF_SAMPLE 2
+#if (CONFIG_SIZEOF_SAMPLE == 1)
+typedef uint8_t sample_t;
+#else
+typedef uint16_t sample_t;
+#endif
+
+
 /* fifo */
 
 /* must be multiple of payload width, so no overflow */
@@ -25,7 +35,7 @@ typedef struct fifo
   volatile fifo_index_t r;
   volatile fifo_index_t w;
 
-  uint8_t buf[FIFO_BUF_SIZE];
+  sample_t buf[FIFO_BUF_SIZE];
 
 } fifo_t;
 
@@ -53,9 +63,9 @@ __attribute__((unused)) static void fifo_write_payload(void)
 
   uint8_t i;
 
-  for (i = 0; i < NRF24L01P_PAYLOAD_WIDTH; ++i)
+  for (i = 0; i < NRF24L01P_PAYLOAD_WIDTH / sizeof(sample_t); ++i)
   {
-    fifo.buf[fifo.w] = nrf24l01p_cmd_buf[i];
+    fifo.buf[fifo.w] = *((sample_t*)nrf24l01p_cmd_buf + i);
 
     /* note that it is concurrent with reader interrupt */
     /* incrementing fifo.w comes after the actual write */
@@ -77,10 +87,10 @@ static inline fifo_index_t fifo_size(void)
   return sizeof(fifo.buf) - fifo_r + fifo.w;
 }
 
-static inline uint8_t fifo_read_uint8(void)
+static inline sample_t fifo_read_one(void)
 {
   /* index wrapping automatically handled */
-  const uint8_t x = fifo.buf[fifo.r];
+  const sample_t x = fifo.buf[fifo.r];
   fifo.r = fifo_mod(fifo.r + 1);
   return x;
 }
@@ -94,20 +104,24 @@ static volatile uint8_t lock_spi = 0;
 
 ISR(TIMER1_COMPA_vect)
 {
-  uint8_t x;
+  sample_t x;
 
   /* note that this is concurrent with fifo_write */
   /* the reader may miss a location in progress, but */
   /* never accesses an invalid one */
   if (fifo_is_empty()) return ;
 
-  x = fifo_read_uint8();
+  x = fifo_read_one();
 
-  /* 12 bits dac, extend for now */
 #if (DAC7554_SOFTSPI == 0)
   if (lock_spi == 0)
 #endif
+#if (CONFIG_SIZEOF_SAMPLE == 1)
+    /* 12 bits dac, extend for now */
     dac7554_write((uint16_t)x << 4, 0);
+#else
+    dac7554_write((uint16_t)x, 0);
+#endif
 }
 
 static inline void on_nrf24l01p_irq(void)
@@ -117,7 +131,7 @@ static inline void on_nrf24l01p_irq(void)
 #endif
 
   /* no overflow, fifo.w mutiple of payload width */
-  nrf24l01p_read_rx_zero(fifo.buf + fifo.w);
+  nrf24l01p_read_rx_zero((uint8_t*)(fifo.buf + fifo.w));
 
 #if (DAC7554_SOFTSPI == 0)
   lock_spi = 0;
@@ -125,7 +139,7 @@ static inline void on_nrf24l01p_irq(void)
 
   if (nrf24l01p_cmd_len == 0) return ;
 
-  fifo.w = fifo_mod(fifo.w + NRF24L01P_PAYLOAD_WIDTH);
+  fifo.w = fifo_mod(fifo.w + NRF24L01P_PAYLOAD_WIDTH / sizeof(sample_t));
 }
 
 
@@ -200,7 +214,7 @@ int main(void)
 
   if (nrf24l01p_is_rx_full()) nrf24l01p_flush_rx();
 
-  while (fifo.w < (sizeof(fifo.buf) / 2))
+  while (fifo.w < (FIFO_BUF_SIZE / 2))
   {
     /* wait for irq and process */
     while (nrf24l01p_is_rx_irq() == 0) ;

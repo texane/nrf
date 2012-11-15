@@ -6,6 +6,16 @@
 #include "../../common/uart.c"
 
 
+/* sample type */
+/* must match with rx definition */
+#define CONFIG_SIZEOF_SAMPLE 2
+#if (CONFIG_SIZEOF_SAMPLE == 1)
+typedef uint8_t sample_t;
+#else
+typedef uint16_t sample_t;
+#endif
+
+
 /* data input source */
 
 #define CONFIG_INPUT_ADC 1
@@ -37,7 +47,9 @@ static uint8_t tone_index = 0;
 
 #endif
 
-static uint8_t sample_buffer[NRF24L01P_PAYLOAD_WIDTH];
+
+#define SAMPLE_BUF_SIZE (NRF24L01P_PAYLOAD_WIDTH / sizeof(sample_t))
+static sample_t sample_buffer[SAMPLE_BUF_SIZE];
 static uint8_t sample_index;
 
 
@@ -48,18 +60,22 @@ ISR(TIMER1_COMPA_vect)
   /* capture next sample */
 
 #if (CONFIG_INPUT_ADC == 1)
-  const uint8_t x = (uint8_t)(adc_read() >> 2);
+#if (CONFIG_SIZEOF_SAMPLE == 2)
+  const sample_t x = adc_read();
+#else /* CONFIG_SIZEOF_SAMPLE == 1 */
+  const sample_t x = adc_read() >> 4;
+#endif /* CONFIG_SIZEOF_SAMPLE */
 #else
-  const uint8_t x = tone_array[tone_index++];
+  const sample_t x = (sample_t)tone_array[tone_index++];
 #endif
 
   sample_buffer[sample_index++] = x;
 
-  if (sample_index == NRF24L01P_PAYLOAD_WIDTH)
+  if (sample_index == SAMPLE_BUF_SIZE)
   {
     sample_index = 0;
     nrf24l01p_clear_irqs();
-    nrf24l01p_write_tx_noack_zero(sample_buffer);
+    nrf24l01p_write_tx_noack_zero((const uint8_t*)sample_buffer);
     /* while (nrf24l01p_is_tx_irq() == 0) ; */
   }
 }
