@@ -27,6 +27,9 @@ static inline void adc_setup(void)
 
   /* aref, internal vref off, channel 0 */
   ADMUX = 0;
+
+  /* disable digital input 0 to reduce power consumption, cf 23.9.5 */
+  DIDR0 = 0x1;
 }
 
 static inline void adc_wait_25(void)
