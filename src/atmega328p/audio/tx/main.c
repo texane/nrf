@@ -58,8 +58,9 @@ ISR(TIMER1_COMPA_vect)
   if (sample_index == NRF24L01P_PAYLOAD_WIDTH)
   {
     sample_index = 0;
+    nrf24l01p_clear_irqs();
     nrf24l01p_write_tx_noack_zero(sample_buffer);
-    while (nrf24l01p_is_tx_irq() == 0) ;
+    /* while (nrf24l01p_is_tx_irq() == 0) ; */
   }
 }
 
@@ -141,15 +142,6 @@ int main(void)
 
   while (1)
   {
-#if 0 /* test, print every 1s using 16 bits counter */
-    if (counter >= 40000)
-    {
-      cli();
-      counter = 0;
-      sei();
-      uart_write((uint8_t*)"x\r\n", 3);
-    }
-#endif /* test */
   }
 
   return 0;

@@ -13,6 +13,8 @@ static inline void adc_setup(void)
 
   DDRC &= ~ADC_MASK;
 
+#if 0 /* fadc to 125khz */
+
   /* 10 bits resolution requires a clock between 50khz and 200khz. */
   /* a prescaler is used to derive fadc from fcpu. the prescaler */
   /* starts counting when ADEN is set, and is always reset when */
@@ -23,6 +25,13 @@ static inline void adc_setup(void)
   /* thus, actual sampling rate of 125000 / 13 = 9615 samples per second */
 
   ADCSRA = (7 << ADPS0);
+
+#else /* force fadc to 1mhz */
+
+  ADCSRA = (4 << ADPS0);
+
+#endif /* fadc */
+
   ADCSRB = 0;
 
   /* aref, internal vref off, channel 0 */
