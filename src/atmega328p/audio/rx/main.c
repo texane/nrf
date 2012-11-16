@@ -117,10 +117,11 @@ ISR(TIMER1_COMPA_vect)
   if (lock_spi == 0)
 #endif
 #if (CONFIG_SIZEOF_SAMPLE == 1)
-    /* 12 bits dac, extend for now */
+    /* 8 bit tone, 12 bits dac, extend for now */
     dac7554_write((uint16_t)x << 4, 0);
 #else
-    dac7554_write((uint16_t)x, 0);
+    /* 10 bits adc */
+    dac7554_write((uint16_t)x << 2, 0);
 #endif
 }
 
