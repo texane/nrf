@@ -35,7 +35,7 @@ static inline void adc_setup(void)
   ADCSRB = 0;
 
   /* aref, internal vref off, channel 0 */
-  ADMUX = 0;
+  ADMUX = 1 << REFS0;
 
   /* disable digital input 0 to reduce power consumption, cf 23.9.5 */
   DIDR0 = 0x1;
@@ -68,5 +68,5 @@ static inline uint16_t adc_read(void)
 {
   /* read adcl first */
   const uint8_t l = ADCL;
-  return ((((uint16_t)ADCH) << 8) | (uint16_t)l) & 0xfff;
+  return ((((uint16_t)ADCH) << 8) | (uint16_t)l) & 0x3ff;
 }
