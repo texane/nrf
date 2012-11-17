@@ -66,7 +66,7 @@ static inline void spi_write_uint8(uint8_t x)
 {
   /* write the byte and wait for transmission */
 
-#if 1 /* FIXME: needed for sd_read_block to work */
+#if 0 /* FIXME: needed for sd_read_block to work */
   __asm__ __volatile__ ("nop\n\t");
   __asm__ __volatile__ ("nop\n\t");
 #endif
