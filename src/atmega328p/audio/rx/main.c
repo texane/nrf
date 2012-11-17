@@ -117,11 +117,9 @@ ISR(TIMER1_COMPA_vect)
   if (lock_spi == 0)
 #endif
 #if (CONFIG_SIZEOF_SAMPLE == 1)
-    /* 8 bit tone, 12 bits dac, extend for now */
     dac7554_write((uint16_t)x << 4, 0);
 #else
-    /* 10 bits adc */
-    dac7554_write((uint16_t)x << 2, 0);
+    dac7554_write(x >> 4, 0);
 #endif
 }
 
@@ -238,12 +236,6 @@ int main(void)
     {
       nrf24l01p_flush_rx();
     }
-#if 0 /* TODO */
-    else if (fifo_is_empty())
-    {
-      /* disable timer1 interrupts */
-    }
-#endif /* TODO */
   }
 
   return 0;

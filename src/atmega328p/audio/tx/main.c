@@ -55,15 +55,17 @@ static uint8_t sample_index;
 
 /* timer1a compare on match handler */
 
+static volatile uint8_t do_compl;
+
 ISR(TIMER1_COMPA_vect)
 {
   /* capture next sample */
 
 #if (CONFIG_INPUT_ADC == 1)
 #if (CONFIG_SIZEOF_SAMPLE == 2)
-  const sample_t x = adc_read();
+  const sample_t x = adc_read() << 6;
 #else /* CONFIG_SIZEOF_SAMPLE == 1 */
-  const sample_t x = adc_read() >> 4;
+  const sample_t x = adc_read() >> 2;
 #endif /* CONFIG_SIZEOF_SAMPLE */
 #else
   const sample_t x = (sample_t)tone_array[tone_index++];
@@ -74,9 +76,10 @@ ISR(TIMER1_COMPA_vect)
   if (sample_index == SAMPLE_BUF_SIZE)
   {
     sample_index = 0;
-    nrf24l01p_clear_irqs();
+    /* sending works without clearing irq */
     nrf24l01p_write_tx_noack_zero((const uint8_t*)sample_buffer);
-    /* while (nrf24l01p_is_tx_irq() == 0) ; */
+    /* completion is done in main */
+    do_compl = 1;
   }
 }
 
@@ -153,11 +156,19 @@ int main(void)
   /* prescaler set to 1, autoclear on interrupt on match */
   TCCR1B = (1 << 3) | (1 << 0);
 
+  do_compl = 0;
+
   /* enable interrupts */
   sei();
 
   while (1)
   {
+    if (do_compl)
+    {
+      do_compl = 0;
+      nrf24l01p_complete_tx_noack_zero();
+      while (nrf24l01p_is_tx_irq() == 0) ;
+    }
   }
 
   return 0;

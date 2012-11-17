@@ -16,7 +16,7 @@
 #define NRF24L01P_IO_IRQ_PIN PINB
 
 /* payload size, in bytes */
-#define NRF24L01P_PAYLOAD_WIDTH 32
+#define NRF24L01P_PAYLOAD_WIDTH 16
 
 /* local addresses */
 #define NRF24L01P_ADDR_WIDTH 3
@@ -614,20 +614,37 @@ static inline void nrf24l01p_cmd_write_zero(const uint8_t* buf)
 
 static void nrf24l01p_write_tx_common_zero(uint8_t op, const uint8_t* buf)
 {
-  nrf24l01p_clear_irqs();
-
   nrf24l01p_cmd_op = op;
   nrf24l01p_cmd_write_zero(buf);
 
   NRF24L01P_IO_CE_PORT |= NRF24L01P_IO_CE_MASK;
-  /* for high tx rate, keep this delay as short as possible */
-  wait_50us();
-  NRF24L01P_IO_CE_PORT &= ~NRF24L01P_IO_CE_MASK;
 }
 
 static inline void nrf24l01p_write_tx_noack_zero(const uint8_t* buf)
 {
   nrf24l01p_write_tx_common_zero(NRF24L01P_CMD_W_TX_PAYLOAD_NOACK, buf);
+}
+
+static void nrf24l01p_complete_tx_noack_zero(void)
+{
+  /* completion original code */
+  /* wait_50us(); */
+  /* NRF24L01P_IO_CE_PORT &= ~NRF24L01P_IO_CE_MASK; */
+
+  register uint8_t i;
+
+  for (i = 0; i != 5; ++i)
+  {
+    __asm__ __volatile__ ("nop\n\t");
+    __asm__ __volatile__ ("nop\n\t");
+    __asm__ __volatile__ ("nop\n\t");
+    __asm__ __volatile__ ("nop\n\t");
+    __asm__ __volatile__ ("nop\n\t");
+    __asm__ __volatile__ ("nop\n\t");
+    __asm__ __volatile__ ("nop\n\t");
+  }
+
+  NRF24L01P_IO_CE_PORT &= ~NRF24L01P_IO_CE_MASK;
 }
 
 static void nrf24l01p_cmd_read_zero(uint8_t* buf)
