@@ -1,54 +1,30 @@
 #include <stdint.h>
-#include "../common/softspi.c"
+#include "../../common/softspi.c"
+
+
+#define ADC8327_CS_MASK (1 << 2)
+#define ADC8327_CS_DDR DDRD
+#define ADC8327_CS_PORT PORTD
+
 
 /* TODO: digital interface page 29 */
 /* TODO: add to softspi */
 /* TODO: extract softspi */
 /* TODO: parametrize softspi at compile time */
 
-static inline void softspi_read_bit(uint8_t* x, uint8_t i)
+static inline void adc8327_cs_low(void)
 {
-  /* read at falling edge */
-
-  softspi_clk_high();
-#if 0
-  /* no need, atmega328p clock below 50mhz */
-  /* softspi_wait_clk(); */
-#endif
-  softspi_clk_low();
-
-  if (softspi_miso_is_high()) *x |= 1 << i;
+  ADC8327_CS_PORT &= ~(ADC8327_CS_MASK);
 }
 
-static uint8_t softspi_read_uint8(void)
+static inline void adc8327_cs_high(void)
 {
-  /* receive msb first, sample at clock falling edge */
-
-  /* must be initialized to 0 */
-  uint8_t x = 0;
-
-  softspi_read_bit(&x, 7);
-  softspi_read_bit(&x, 6);
-  softspi_read_bit(&x, 5);
-  softspi_read_bit(&x, 4);
-  softspi_read_bit(&x, 3);
-  softspi_read_bit(&x, 2);
-  softspi_read_bit(&x, 1);
-  softspi_read_bit(&x, 0);
-
-  return x;
+  ADC8327_CS_PORT |= ADC8327_CS_MASK;
 }
-
-static inline uint16_t softspi_read_uint16(void)
-{
-  /* lsB first */
-  const uint8_t x = softspi_read_uint8();
-  return ((uint16_t)x << 8) | (uint16_t)softspi_read_uint8();
-}
-
 
 static inline void adc8327_write_cmd(uint16_t cmd)
 {
+  softspi_write_uint16(cmd);
 }
 
 static inline uint16_t adc8327_make_cmd0(uint8_t op)
@@ -72,16 +48,16 @@ static inline uint16_t adc8327_make_cmd16(uint8_t op, uint16_t x)
   return adc8327_make_cmd0(op) | x;
 }
 
-static uint16_t adc8327_read_data(void)
+static inline uint16_t adc8327_read_data(void)
 {
   adc8327_write_cmd(adc8327_make_cmd0(ADC8327_OP_READ_DATA));
-  return adc8327_read16();
+  return softspi_read_uint16();
 }
 
 static uint16_t adc8327_read_cfr(void)
 {
   adc8327_write_cmd(adc8327_make_cmd0(ADC8327_OP_READ_CFR));
-  return adc8327_read16();
+  return softspi_read_uint16();
 }
 
 static void adc8327_write_cfr(uint16_t x)
@@ -91,8 +67,8 @@ static void adc8327_write_cfr(uint16_t x)
 
 static void adc8327_setup(void)
 {
-  DDRD |= ADC8327_SYNC_MASK;
-  adc8327_sync_high();
+  ADC8327_CS_DDR |= ADC8327_CS_MASK;
+  adc8327_cs_high();
 
   softspi_setup_master();
 
@@ -115,5 +91,11 @@ static void adc8327_setup(void)
 
 static uint16_t adc8327_read(void)
 {
-  /* falling edge */
+  uint16_t x;
+
+  adc8327_cs_low();
+  x = adc8327_read_data();
+  adc8327_cs_high();
+
+  return x;
 }
