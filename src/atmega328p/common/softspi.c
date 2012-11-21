@@ -118,7 +118,7 @@ static uint8_t softspi_read_uint8(void)
 
 static inline uint16_t softspi_read_uint16(void)
 {
-  /* lsB first */
+  /* msB ordering */
   const uint8_t x = softspi_read_uint8();
   return ((uint16_t)x << 8) | (uint16_t)softspi_read_uint8();
 }
