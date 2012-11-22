@@ -48,24 +48,45 @@ static inline uint16_t adc8327_make_cmd16(uint8_t op, uint16_t x)
   return adc8327_make_cmd0(op) | x;
 }
 
+static inline void adc8327_cs_pulse(void)
+{
+  adc8327_cs_high();
+  /* no need for wait cycle on atmega328p */
+  adc8327_cs_low();
+}
+
+static uint16_t adc8327_read_common(uint8_t op)
+{
+  uint16_t x;
+
+  adc8327_cs_pulse();
+
+  adc8327_write_cmd(adc8327_make_cmd0(op));
+  x = softspi_read_uint16();
+
+  adc8327_cs_high();
+
+  return x;
+}
+
 static inline uint16_t adc8327_read_data(void)
 {
-  adc8327_write_cmd(adc8327_make_cmd0(ADC8327_OP_READ_DATA));
-  return softspi_read_uint16();
+  return adc8327_read_common(ADC8327_OP_READ_DATA);
 }
 
 static uint16_t adc8327_read_cfr(void)
 {
-  adc8327_write_cmd(adc8327_make_cmd0(ADC8327_OP_READ_CFR));
-  return softspi_read_uint16();
+  return adc8327_read_common(ADC8327_OP_READ_CFR);
 }
 
 static void adc8327_write_cfr(uint16_t x)
 {
+  adc8327_cs_pulse();
   adc8327_write_cmd(adc8327_make_cmd16(ADC8327_OP_WRITE_CFR, x));
+  adc8327_cs_high();
 }
 
-static void adc8327_setup(void)
+static inline void adc8327_setup(void)
 {
   ADC8327_CS_DDR |= ADC8327_CS_MASK;
   adc8327_cs_high();
@@ -85,17 +106,31 @@ static void adc8327_setup(void)
 #define ADC8327_CFR_DEEP_PWRDN (1 << 2)
 #define ADC8327_CFR_TAG (1 << 1)
 #define ADC8327_CFR_RESET (1 << 0)
-
-  /* TODO: free running mode */
 }
 
-static uint16_t adc8327_read(void)
+static inline void adc8327_start_free_running(void)
 {
+  /* default is: */
+  /* auto channel selected enabled */
+  /* internal conversion clock */
+  /* manual conversion trigger */
+
   uint16_t x;
 
-  adc8327_cs_low();
-  x = adc8327_read_data();
-  adc8327_cs_high();
+  x = adc8327_read_cfr();
 
-  return x;
+  /* automatic conversion triggering */
+  x &= ~ADC8327_CFR_TRIG;
+
+  adc8327_write_cfr(x);
+}
+
+static inline void adc8327_stop(void)
+{
+  /* TODO */
+}
+
+static inline uint16_t adc8327_read(void)
+{
+  return adc8327_read_data();
 }
