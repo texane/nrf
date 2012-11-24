@@ -3,8 +3,13 @@
 #include <avr/interrupt.h>
 #include "../../common/spi.c"
 #include "../../common/nrf24l01p.c"
-#include "../../common/uart.c"
 #include "dac7554.c"
+
+
+#define CONFIG_USE_UART 0
+#if (CONFIG_USE_UART == 1)
+#include "../../common/uart.c"
+#endif
 
 
 /* sample type */
@@ -150,7 +155,9 @@ int main(void)
   spi_setup_master();
   spi_set_sck_freq(SPI_SCK_FREQ_FOSC2);
 
+#if (CONFIG_USE_UART == 1)
   uart_setup();
+#endif
 
   nrf24l01p_setup();
 
@@ -204,10 +211,12 @@ int main(void)
   /* enable interrupts */
   sei();
 
+#if (CONFIG_USE_UART == 1)
   uart_write((uint8_t*)"rx side\r\n", 9);
   uart_write((uint8_t*)"press space\r\n", 13);
   uart_read_uint8();
   uart_write((uint8_t*)"starting\r\n", 10);
+#endif
 
   nrf24l01p_standby_to_rx();
 
