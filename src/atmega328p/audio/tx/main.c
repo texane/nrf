@@ -64,6 +64,7 @@ ISR(TIMER1_COMPA_vect)
 #if (CONFIG_INPUT_ADC == 1)
 #if (CONFIG_SIZEOF_SAMPLE == 2)
   const sample_t x = adc_read() << 6;
+  /* const sample_t x = adc_read(); */
 #else /* CONFIG_SIZEOF_SAMPLE == 1 */
   const sample_t x = adc_read() >> 2;
 #endif /* CONFIG_SIZEOF_SAMPLE */
