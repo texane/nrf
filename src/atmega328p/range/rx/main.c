@@ -9,6 +9,8 @@
 #include "../../common/uart.c"
 #endif
 
+#define CONFIG_USE_PCINT 1
+
 
 static void set_led(uint8_t mask)
 {
@@ -59,6 +61,21 @@ static inline uint8_t on_nrf24l01p_irq(void)
 
   return mask;
 }
+
+
+#if (CONFIG_USE_PCINT == 1)
+
+static volatile uint8_t is_irq = 0;
+
+ISR(PCINT0_vect)
+{
+  /* pin change 0 interrupt handler */
+  if (nrf24l01p_is_rx_irq() == 0) return ;
+  is_irq = 1;
+}
+
+#endif /* CONFIG_USE_PCINT */
+
 
 /* main */
 
@@ -111,6 +128,15 @@ int main(void)
 
   nrf24l01p_powerdown_to_standby();
 
+#if (CONFIG_USE_PCINT == 1)
+  /* setup interrupt on change. disable pullup. */
+  DDRB &= ~(1 << 1);
+  PORTB &= ~(1 << 1);
+  PCICR |= 1 << 0;
+  /* enable portb1 interrupt on change */
+  PCMSK0 |= 1 << 1;
+#endif /* CONFIG_USE_PCINT */
+
   /* enable interrupts */
   sei();
 
@@ -129,8 +155,16 @@ int main(void)
 
   while (1)
   {
-    if (nrf24l01p_is_rx_irq())
+#if (CONFIG_USE_PCINT == 0)
+    const uint8_t is_irq = nrf24l01p_is_rx_irq();
+#endif
+
+    if (is_irq)
     {
+#if (CONFIG_USE_PCINT == 1)
+      is_irq = 0;
+#endif
+
       const uint8_t led_mask = on_nrf24l01p_irq();
       if (led_mask & LED_RX_MASK) counter[0] = 0;
       if (led_mask & LED_MATCH_MASK) counter[1] = 0;
