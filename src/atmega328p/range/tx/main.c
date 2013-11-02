@@ -5,6 +5,14 @@
 #include "../../common/nrf24l01p.c"
 #include "../../common/uart.c"
 
+static void make_pattern(uint8_t* buf)
+{
+  uint8_t i;
+  uint8_t x;
+
+  for (i = 0, x = 0x2a; i < NRF24L01P_PAYLOAD_WIDTH; ++i, ++x)
+    buf[i] = x;
+}
 
 int main(void)
 {
@@ -71,7 +79,7 @@ int main(void)
     if ((++counter) != (200000UL / 8UL)) continue ;
     counter = 0;
 
-    *(uint32_t*)buf = 0x2a2b2c2d;
+    make_pattern(buf);
     nrf24l01p_write_tx_noack_zero(buf);
     nrf24l01p_complete_tx_noack_zero();
     while (nrf24l01p_is_tx_irq() == 0) ;

@@ -29,6 +29,22 @@ static void set_led(uint8_t mask)
   pre_mask = mask;
 }
 
+static int compare_pattern(void)
+{
+  uint8_t i;
+  uint8_t x;
+
+  if (nrf24l01p_cmd_len < NRF24L01P_PAYLOAD_WIDTH)
+    return -1;
+
+  for (i = 0, x = 0x2a; i < NRF24L01P_PAYLOAD_WIDTH; ++i, ++x)
+  {
+    if (nrf24l01p_cmd_buf[i] != x) return -1;
+  }
+
+  return 0;
+}
+
 static inline uint8_t on_nrf24l01p_irq(void)
 {
   uint8_t mask = 0;
@@ -38,11 +54,7 @@ static inline uint8_t on_nrf24l01p_irq(void)
   if (nrf24l01p_cmd_len)
   {
     mask |= LED_RX_MASK;
-    if (nrf24l01p_cmd_len >= 4)
-    {
-      if (*(uint32_t*)nrf24l01p_cmd_buf == 0x2a2b2c2d)
-	mask |= LED_MATCH_MASK;
-    }
+    if (compare_pattern() == 0) mask |= LED_MATCH_MASK;
   }
 
   return mask;
