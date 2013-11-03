@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <avr/io.h>
+#include <avr/sleep.h>
 #include <avr/interrupt.h>
 #include "../../common/nrf24l01p.c"
 
@@ -10,6 +11,8 @@
 #endif
 
 #define CONFIG_USE_PCINT 1
+#define CONFIG_USE_SLEEP 1
+#define CONFIG_USE_LED 1
 
 
 static void set_led(uint8_t mask)
@@ -26,7 +29,9 @@ static void set_led(uint8_t mask)
   if (mask == pre_mask) return ;
 
   PORTD &= ~(LED_RX_MASK | LED_MATCH_MASK);
+#if (CONFIG_USE_LED == 1)
   PORTD |= mask;
+#endif /* CONFIG_USE_LED */
 
   pre_mask = mask;
 }
@@ -153,10 +158,24 @@ int main(void)
 
   if (nrf24l01p_is_rx_full()) nrf24l01p_flush_rx();
 
+#if (CONFIG_USE_SLEEP == 1)
+  set_sleep_mode(SLEEP_MODE_PWR_DOWN);
+#endif
+
   while (1)
   {
 #if (CONFIG_USE_PCINT == 0)
     const uint8_t is_irq = nrf24l01p_is_rx_irq();
+#endif
+
+#if (CONFIG_USE_SLEEP == 1)
+    /* todo: non atomic, there should be a timer interrupt */
+    if (is_irq == 0)
+    {
+      sleep_enable();
+      sleep_cpu();
+      sleep_disable();
+    }
 #endif
 
     if (is_irq)
