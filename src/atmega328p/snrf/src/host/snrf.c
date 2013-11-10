@@ -163,6 +163,7 @@ int snrf_read_payload(snrf_handle_t* snrf, uint8_t* buf, size_t* size)
     }
     else if (err == -2)
     {
+      /* not an error, but do not retry */
       return -2;
     }
   }
