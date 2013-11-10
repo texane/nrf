@@ -41,6 +41,8 @@ int snrf_open(snrf_handle_t* snrf)
     goto on_error_1;
   }
 
+  /* TODO: use info to get nrf model and snrf proto version */
+
   if (snrf_get_keyval(snrf, SNRF_KEY_STATE, &snrf->state))
   {
     SNRF_PERROR();
@@ -96,7 +98,8 @@ static int read_msg(snrf_handle_t* snrf, snrf_msg_t* msg)
   return 0;
 }
 
-static int wait_msg(snrf_handle_t* snrf, uint8_t op, snrf_msg_t* msg, size_t n)
+static int wait_msg_n
+(snrf_handle_t* snrf, uint8_t op, snrf_msg_t* msg, size_t n)
 {
   snrf_msg_node_t* node;
 
@@ -123,6 +126,11 @@ static int wait_msg(snrf_handle_t* snrf, uint8_t op, snrf_msg_t* msg, size_t n)
   return -2;
 }
 
+static int wait_msg(snrf_handle_t* snrf, uint8_t op, snrf_msg_t* msg)
+{
+  return wait_msg_n(snrf, op, msg, (size_t)-1);
+}
+
 int snrf_write_payload(snrf_handle_t* snrf, const uint8_t* buf, size_t size)
 {
   snrf_msg_t msg;
@@ -134,6 +142,12 @@ int snrf_write_payload(snrf_handle_t* snrf, const uint8_t* buf, size_t size)
   msg.u.payload.size = (uint8_t)size;
 
   if (write_msg(snrf, &msg))
+  {
+    SNRF_PERROR();
+    return -1;
+  }
+
+  if (wait_msg(snrf, SNRF_OP_COMPL, &msg))
   {
     SNRF_PERROR();
     return -1;
@@ -171,7 +185,7 @@ int snrf_read_payload(snrf_handle_t* snrf, uint8_t* buf, size_t* size)
   }
   else
   {
-    const int err = wait_msg(snrf, SNRF_OP_PAYLOAD, &msg, 1);
+    const int err = wait_msg_n(snrf, SNRF_OP_PAYLOAD, &msg, 1);
     if (err == -1)
     {
       SNRF_PERROR();
@@ -219,7 +233,7 @@ int snrf_set_keyval(snrf_handle_t* snrf, uint8_t key, uint32_t val)
     return -1;
   }
 
-  if (wait_msg(snrf, SNRF_OP_COMPL, &msg, (size_t)-1))
+  if (wait_msg(snrf, SNRF_OP_COMPL, &msg))
   {
     SNRF_PERROR();
     return -1;
@@ -247,7 +261,7 @@ int snrf_get_keyval(snrf_handle_t* snrf, uint8_t key, uint32_t* val)
     return -1;
   }
 
-  if (wait_msg(snrf, SNRF_OP_COMPL, &msg, (size_t)-1))
+  if (wait_msg(snrf, SNRF_OP_COMPL, &msg))
   {
     SNRF_PERROR();
     return -1;
