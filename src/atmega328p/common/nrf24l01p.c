@@ -531,6 +531,11 @@ static inline void nrf24l01p_enable_tx_noack(void)
   nrf24l01p_or_reg8(NRF24L01P_REG_FEATURE, 1 << 0);
 }
 
+static inline void nrf24l01p_disable_tx_noack(void)
+{
+  nrf24l01p_and_reg8(NRF24L01P_REG_FEATURE, ~(1 << 0));
+}
+
 static void nrf24l01p_write_tx_common(uint8_t op)
 {
   /* cmd_buf[0] is overwritten by nrf24l01p_nclear_irqs */

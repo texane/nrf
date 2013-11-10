@@ -16,17 +16,19 @@
 #define SNRF_KEY_ADDR_WIDTH 5
 #define SNRF_KEY_RX_ADDR 6
 #define SNRF_KEY_TX_ADDR 7
-#define SNRF_KEY_ACK 8
+#define SNRF_KEY_TX_ACK 8
 #define SNRF_KEY_PAYLOAD_WIDTH 9
 
-#define SNRF_STATE_IDLE 0
+#define SNRF_STATE_CONF 0
 #define SNRF_STATE_TXRX 1
+#define SNRF_STATE_MAX 2
 
 #define SNRF_ERR_SUCCESS 0
 #define SNRF_ERR_FAILURE 1
 #define SNRF_ERR_OP 2
 #define SNRF_ERR_KEY 3
 #define SNRF_ERR_VAL 4 
+#define SNRF_ERR_STATE 5
 
 typedef struct
 {

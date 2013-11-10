@@ -212,16 +212,9 @@ int snrf_read_payload(snrf_handle_t* snrf, uint8_t* buf, size_t* size)
 
 int snrf_set_keyval(snrf_handle_t* snrf, uint8_t key, uint32_t val)
 {
-  snrf_msg_t msg;
+  /* device must be in conf mode */
 
-  if (key != SNRF_KEY_STATE)
-  {
-    if (snrf->state != SNRF_STATE_IDLE)
-    {
-      SNRF_PERROR();
-      return -1;
-    }
-  }
+  snrf_msg_t msg;
 
   msg.op = SNRF_OP_SET;
   msg.u.set.key = key;
