@@ -1,5 +1,5 @@
 CC := gcc
-CFLAGS := -Wall -O2 -I../common
+CFLAGS := -Wall -O2 -I../common -I.
 
 SRCS := snrf.c serial.c
 OBJS := $(SRCS:.c=.o)
@@ -18,5 +18,8 @@ clean:
 
 fclean:	clean
 	-rm libsnrf.a
+
+main: libsnrf.a main.o
+	$(CC) -Wall -O2 -o main main.o -L. -lsnrf
 
 .PHONY: all clean fclean
