@@ -1,5 +1,4 @@
 /* TODO: uart interrupt handler */
-/* TODO: check sleep mode wake on uart interrupt */
 /* TODO: check nrf power modes (can configure in powerdown ...) */
 
 
@@ -22,7 +21,7 @@ static uint8_t snrf_state = SNRF_STATE_CONF;
 #define MAKE_COMPL_ERROR(__m, __e)		\
 do {						\
   (__m)->u.compl.err = __e;			\
-  (__m)->u.compl.data = __LINE__;		\
+  (__m)->u.compl.val = __LINE__;		\
 } while (0)
 
 #define ARRAY_COUNT(__a) (sizeof(__a) / sizeof((__a)[0]))
@@ -40,7 +39,7 @@ static inline uint32_t le_to_uint32(uint32_t x)
 static void handle_set_msg(snrf_msg_t* msg)
 {
   /* capture before modifying */
-  const uin8_t key = msg->u.set.key;
+  const uint8_t key = msg->u.set.key;
   const uint32_t val = le_to_uint32(msg->u.set.val);
 
   if ((snrf_state != SNRF_STATE_CONF) && (key != SNRF_KEY_STATE))
@@ -174,7 +173,7 @@ static void handle_payload_msg(snrf_msg_t* msg)
 
   if (snrf_state != SNRF_STATE_TXRX)
   {
-    MAKE_COMPL_ERROR(msg);
+    MAKE_COMPL_ERROR(msg, SNRF_ERR_STATE);
     return ;
   }
 
@@ -188,7 +187,7 @@ static void handle_payload_msg(snrf_msg_t* msg)
   nrf24l01p_tx_to_rx();
 
   /* fill completion status */
-  msg->u.comp.err = 0;
+  msg->u.compl.err = 0;
 }
 
 static void handle_msg(snrf_msg_t* msg)
@@ -260,20 +259,37 @@ ISR(PCINT0_vect)
   msg.op = SNRF_OP_PAYLOAD;
   msg.u.payload.size = size;
   for (i = 0; i < size; ++i)
-    msg.u.payload.data[i] = nrf24l01p_cmd_buf[i]
+    msg.u.payload.data[i] = nrf24l01p_cmd_buf[i];
 
-  uart_write((const uint8_t*)&msg, sizeof(msg));
+  uart_write((uint8_t*)&msg, sizeof(msg));
 }
 
 
 /* uart interrupt handler */
 
+static void uart_enable_rx_int(void)
+{
+  UCSR0B |= 1 << RXCIE0;
+}
+
+static inline uint8_t uart_is_rx_empty(void)
+{
+  return (UCSR0A & (1 << 7)) == 0;
+}
+
+static inline uint8_t uart_peek_one(void)
+{
+  return UDR0;
+}
+
 static uint8_t uart_buf[sizeof(snrf_msg_t)];
 static uint8_t uart_pos = 0;
 
-ISR(UART_vect)
+ISR(USART_RX_vect)
 {
-  uart_buf[uart_pos++] = uart_read();
+  if (uart_is_rx_empty()) return ;
+
+  uart_buf[uart_pos++] = uart_peek_one();
   if (uart_pos < sizeof(uart_buf)) return ;
 
   /* handle new message */
@@ -284,7 +300,6 @@ ISR(UART_vect)
   uart_pos = 0;
 }
 
-
 /* main */
 
 int main(void)
@@ -294,6 +309,7 @@ int main(void)
   spi_set_sck_freq(SPI_SCK_FREQ_FOSC2);
 
   uart_setup();
+  uart_enable_rx_int();
 
   /* nrf24l01p default configuration */
 
@@ -341,17 +357,16 @@ int main(void)
   /* enable portb1 interrupt on change */
   PCMSK0 |= 1 << 1;
 
+  /* uart and pinchange int wakeup sources */
+  set_sleep_mode(SLEEP_MODE_IDLE);
+
+  sleep_enable();
+  sleep_bod_disable();
+
   /* enable interrupts */
   sei();
 
-  set_sleep_mode(SLEEP_MODE_PWR_DOWN);
-
-  while (1)
-  {
-    sleep_enable();
-    sleep_cpu();
-    sleep_disable();
-  }
+  while (1) sleep_cpu();
 
   return 0;
 }
