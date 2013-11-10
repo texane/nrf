@@ -48,6 +48,7 @@ int snrf_open(snrf_handle_t* snrf)
   }
 
   snrf->msg_head = NULL;
+  snrf->msg_tail = NULL;
 
   return 0;
 
@@ -109,11 +110,13 @@ static int wait_msg(snrf_handle_t* snrf, uint8_t op, snrf_msg_t* msg, size_t n)
 
     if (msg->op == op) break ;
 
-    /* put in msg queue */
+    /* put in msg queue, append at tail */
     node = malloc(sizeof(snrf_msg_node_t));
     memcpy(&node->msg, msg, sizeof(snrf_msg_t));
-    node->next = snrf->msg_head;
-    snrf->msg_head = node;
+    node->next = NULL;
+    if (snrf->msg_head == NULL) snrf->msg_head = node;
+    else snrf->msg_tail->next = node;
+    snrf->msg_tail = node;
   }
 
   /* n reached */
@@ -143,13 +146,26 @@ int snrf_read_payload(snrf_handle_t* snrf, uint8_t* buf, size_t* size)
 {
   /* assume buf size <= SNRF_MAX_PAYLOAD_WIDTH */
 
+  snrf_msg_node_t* node;
+  snrf_msg_node_t* prev;
   snrf_msg_t msg;
 
-  /* look in msg queue */
-  if (snrf->msg_head != NULL)
+  /* look in msg queue, start at head */
+  node = snrf->msg_head;
+  prev = NULL;
+  while (node != NULL)
   {
-    snrf_msg_node_t* const node = snrf->msg_head;
-    snrf->msg_head = node->next;
+    if (node->msg.op == SNRF_OP_PAYLOAD) break ;
+    prev = node;
+    node = node->next;
+  }
+
+  /* msg found in list */
+  if (node != NULL)
+  {
+    if (node == snrf->msg_head) snrf->msg_head = node->next;
+    else prev->next = node->next;
+    if (node == snrf->msg_tail) snrf->msg_tail = node->next;
     memcpy(&msg, &node->msg, sizeof(msg));
     free(node);
   }

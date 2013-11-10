@@ -20,10 +20,13 @@
 #define SNRF_STATE_IDLE 0
 #define SNRF_STATE_TXRX 1
 
+#define SNRF_ERR_SUCCESS 0
+#define SNRF_ERR_FAILURE 1
+#define SNRF_ERR_OVERFLOW 2
+
 typedef struct
 {
   uint8_t op;
-  uint8_t id;
 
   union
   {

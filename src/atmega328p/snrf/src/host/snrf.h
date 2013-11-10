@@ -17,6 +17,7 @@ typedef struct snrf_handle
 {
   serial_handle_t serial;
   snrf_msg_node_t* msg_head;
+  snrf_msg_node_t* msg_tail;
   uint32_t state;
 } snrf_handle_t;
 
