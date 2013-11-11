@@ -242,6 +242,8 @@ int serial_set_conf(serial_handle_t* h,
       DEBUG_ERROR("conf_to_speed_t()\n");
       goto on_error;
     }
+  /* disable hardware flow control */
+  termios.c_cflag &= ~CRTSCTS;
 #else
   tcgetattr(h->fd, &termios);
   cfsetospeed(&termios, (speed_t)B38400);
