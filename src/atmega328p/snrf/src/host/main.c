@@ -46,6 +46,7 @@ int main(int ac, char** av)
     size_t size;
     fd_set set;
 
+    printf("set_keyval\n");
     if (snrf_set_keyval(&snrf, SNRF_KEY_STATE, SNRF_STATE_TXRX))
     {
       PERROR();
@@ -55,6 +56,7 @@ int main(int ac, char** av)
     FD_ZERO(&set);
     FD_SET(fd, &set);
 
+    printf("select\n");
     if (select(fd + 1, &set, NULL, NULL, NULL) <= 0)
     {
       PERROR();

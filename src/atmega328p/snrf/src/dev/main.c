@@ -1,7 +1,3 @@
-/* TODO: uart interrupt handler */
-/* TODO: check nrf power modes (can configure in powerdown ...) */
-
-
 #include <stdint.h>
 #include <avr/io.h>
 #include <avr/sleep.h>
@@ -20,6 +16,7 @@ static uint8_t snrf_state = SNRF_STATE_CONF;
 
 #define MAKE_COMPL_ERROR(__m, __e)		\
 do {						\
+  (__m)->op = SNRF_OP_COMPL;			\
   (__m)->u.compl.err = __e;			\
   (__m)->u.compl.val = __LINE__;		\
 } while (0)
@@ -48,7 +45,8 @@ static void handle_set_msg(snrf_msg_t* msg)
     return ;
   }
 
-  /* assume success */
+  /* completion sent back, assume success */
+  msg->op = SNRF_OP_COMPL;
   msg->u.compl.err = 0;
 
   switch (key)
@@ -155,9 +153,17 @@ static void handle_set_msg(snrf_msg_t* msg)
 
 static void handle_get_msg(snrf_msg_t* msg)
 {
-  switch (msg->u.set.key)
+  /* capture before modifying */
+  const uint8_t key = msg->u.set.key;
+
+  /* completion sent back, assume success */
+  msg->op = SNRF_OP_COMPL;
+  msg->u.compl.err = 0;
+
+  switch (key)
   {
   case SNRF_KEY_STATE:
+    msg->u.compl.val = uint32_to_le(snrf_state);
     break ;
 
   default:
@@ -187,6 +193,7 @@ static void handle_payload_msg(snrf_msg_t* msg)
   nrf24l01p_tx_to_rx();
 
   /* fill completion status */
+  msg->op = SNRF_OP_COMPL;
   msg->u.compl.err = 0;
 }
 
@@ -210,8 +217,6 @@ static void handle_msg(snrf_msg_t* msg)
     MAKE_COMPL_ERROR(msg, SNRF_ERR_OP);
     break ;
   }
-
-  /* TODO: send snrf_msg back */
 }
 
 
@@ -282,11 +287,11 @@ static inline uint8_t uart_peek_one(void)
   return UDR0;
 }
 
-static uint8_t uart_buf[sizeof(snrf_msg_t)];
-static uint8_t uart_pos = 0;
-
 ISR(USART_RX_vect)
 {
+  static uint8_t uart_buf[sizeof(snrf_msg_t)];
+  static uint8_t uart_pos = 0;
+
   if (uart_is_rx_empty()) return ;
 
   uart_buf[uart_pos++] = uart_peek_one();
@@ -294,9 +299,10 @@ ISR(USART_RX_vect)
 
   /* handle new message */
   handle_msg((snrf_msg_t*)uart_buf);
-  /* TODO: write msg in uart_buf */
 
-  /* pos module buf size */
+  uart_write(uart_buf, sizeof(uart_buf));
+
+  /* pos is modulo buf size */
   uart_pos = 0;
 }
 
@@ -359,7 +365,6 @@ int main(void)
 
   /* uart and pinchange int wakeup sources */
   set_sleep_mode(SLEEP_MODE_IDLE);
-
   sleep_enable();
   sleep_bod_disable();
 

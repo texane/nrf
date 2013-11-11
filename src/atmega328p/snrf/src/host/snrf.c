@@ -27,7 +27,7 @@ if (!(__x)) printf("[!] %s, %u\n", __FILE__, __LINE__);	\
 
 int snrf_open(snrf_handle_t* snrf)
 {
-  static serial_conf_t conf = { 9600, SERIAL_PARITY_DISABLED, 1 };
+  static const serial_conf_t conf = { 9600, 8, SERIAL_PARITY_DISABLED, 1 };
 
   if (serial_open(&snrf->serial, "/dev/ttyUSB0"))
   {

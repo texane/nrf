@@ -32,6 +32,9 @@
 
 typedef struct
 {
+  /* warning: everything must be packed attribtued */
+  /* or gcc 4.7.2 sizeof(snrf_msg_t) == 21 */
+
   uint8_t op;
 
   union
@@ -41,32 +44,32 @@ typedef struct
 #define SNRF_MAX_PAYLOAD_WIDTH 16
       uint8_t data[SNRF_MAX_PAYLOAD_WIDTH];
       uint8_t size;
-    } payload;
+    } __attribute__((packed)) payload;
 
     struct
     {
       uint8_t key;
       uint32_t val;
-    } set;
+    } __attribute__((packed)) set;
 
     struct
     {
       uint8_t key;
-    } get;
+    } __attribute__((packed)) get;
 
     struct
     {
       uint8_t err;
       uint32_t val;
-    } compl;
+    } __attribute__((packed)) compl;
 
     struct
     {
       uint32_t data;
       uint32_t line;
-    } debug;
+    } __attribute__((packed)) debug;
 
-  } u;
+  } __attribute__((packed)) u;
 
 } __attribute__((packed)) snrf_msg_t;
 
