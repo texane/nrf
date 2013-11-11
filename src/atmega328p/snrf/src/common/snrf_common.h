@@ -30,6 +30,9 @@
 #define SNRF_ERR_VAL 4 
 #define SNRF_ERR_STATE 5
 
+#define SNRF_SYNC_BYTE 0xff
+#define SNRF_SYNC_END 0x2a
+
 typedef struct
 {
   /* warning: everything must be packed attribtued */
@@ -70,6 +73,9 @@ typedef struct
     } __attribute__((packed)) debug;
 
   } __attribute__((packed)) u;
+
+  /* 0xff if synchronization wanted */
+  uint8_t sync;
 
 } __attribute__((packed)) snrf_msg_t;
 

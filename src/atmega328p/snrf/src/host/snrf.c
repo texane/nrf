@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/select.h>
@@ -41,7 +42,12 @@ int snrf_open(snrf_handle_t* snrf)
     goto on_error_1;
   }
 
-  /* TODO: use info to get nrf model and snrf proto version */
+  /* synchronize data streams */
+  if (snrf_sync(snrf))
+  {
+    SNRF_PERROR();
+    goto on_error_1;
+  }
 
   if (snrf_get_keyval(snrf, SNRF_KEY_STATE, &snrf->state))
   {
@@ -143,6 +149,7 @@ int snrf_write_payload(snrf_handle_t* snrf, const uint8_t* buf, size_t size)
   msg.op = SNRF_OP_PAYLOAD;
   memcpy(msg.u.payload.data, buf, size);
   msg.u.payload.size = (uint8_t)size;
+  msg.sync = 0x00;
 
   if (write_msg(snrf, &msg))
   {
@@ -222,6 +229,7 @@ int snrf_set_keyval(snrf_handle_t* snrf, uint8_t key, uint32_t val)
   msg.op = SNRF_OP_SET;
   msg.u.set.key = key;
   msg.u.set.val = uint32_to_le(val);
+  msg.sync = 0x00;
 
   if (write_msg(snrf, &msg))
   {
@@ -235,8 +243,9 @@ int snrf_set_keyval(snrf_handle_t* snrf, uint8_t key, uint32_t val)
     return -1;
   }
 
-  if (msg.u.compl.err)
+  if (msg.u.compl.err != SNRF_ERR_SUCCESS)
   {
+    printf("err == %u\n", msg.u.compl.val);
     SNRF_PERROR();
     return -1;
   }
@@ -250,6 +259,7 @@ int snrf_get_keyval(snrf_handle_t* snrf, uint8_t key, uint32_t* val)
 
   msg.op = SNRF_OP_GET;
   msg.u.set.key = key;
+  msg.sync = 0x00;
 
   if (write_msg(snrf, &msg))
   {
@@ -265,11 +275,44 @@ int snrf_get_keyval(snrf_handle_t* snrf, uint8_t key, uint32_t* val)
 
   if (msg.u.compl.err)
   {
+    printf("%x, %u\n", msg.u.compl.err, msg.u.compl.val);
     SNRF_PERROR();
     return -1;
   }
 
   *val = le_to_uint32(msg.u.compl.val);
+
+  return 0;
+}
+
+int snrf_sync(snrf_handle_t* snrf)
+{
+  static const uint8_t sync_byte = SNRF_SYNC_BYTE;
+  static const uint8_t end_byte = SNRF_SYNC_END;
+
+  size_t i;
+
+  for (i = 0; i < (4 * sizeof(snrf_msg_t)); ++i)
+  {
+    usleep(10000);
+    if (serial_writen(&snrf->serial, &sync_byte, 1))
+    {
+      SNRF_PERROR();
+      return -1;
+    }
+  }
+
+  if (serial_flush_rx(&snrf->serial))
+  {
+    SNRF_PERROR();
+    return -1;
+  }
+
+  if (serial_writen(&snrf->serial, &end_byte, 1))
+  {
+    SNRF_PERROR();
+    return -1;
+  }
 
   return 0;
 }

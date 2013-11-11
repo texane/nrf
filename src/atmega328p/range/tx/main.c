@@ -8,10 +8,8 @@
 static void make_pattern(uint8_t* buf)
 {
   uint8_t i;
-  uint8_t x;
-
-  for (i = 0, x = 0x2a; i < NRF24L01P_PAYLOAD_WIDTH; ++i, ++x)
-    buf[i] = x;
+  static uint8_t x = 0;
+  for (i = 0; i < NRF24L01P_PAYLOAD_WIDTH; ++i, ++x) buf[i] = x;
 }
 
 int main(void)
@@ -76,7 +74,7 @@ int main(void)
 
   while (1)
   {
-    if ((++counter) != (200000UL / 8UL)) continue ;
+    if ((++counter) != (uint32_t)-1UL) continue ;
     counter = 0;
 
     make_pattern(buf);

@@ -230,8 +230,19 @@ void serial_close(serial_handle_t* h)
 }
 
 
-int serial_set_conf(serial_handle_t* h,
-		    const serial_conf_t* c)
+int serial_flush_rx(serial_handle_t* serial)
+{
+  if (tcflush(serial->fd, TCIFLUSH))
+  {
+    perror("tcflush");
+    return -1;
+  }
+
+  return 0;
+}
+
+
+int serial_set_conf(serial_handle_t* h, const serial_conf_t* c)
 {
   struct termios termios;
 

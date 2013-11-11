@@ -23,6 +23,7 @@ typedef struct snrf_handle
 
 int snrf_open(snrf_handle_t*);
 int snrf_close(snrf_handle_t*);
+int snrf_sync(snrf_handle_t*);
 int snrf_write_payload(snrf_handle_t*, const uint8_t*, size_t);
 int snrf_read_payload(snrf_handle_t*, uint8_t*, size_t*);
 int snrf_set_keyval(snrf_handle_t*, uint8_t, uint32_t);

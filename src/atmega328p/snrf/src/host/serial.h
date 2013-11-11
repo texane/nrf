@@ -62,6 +62,7 @@ int serial_read(serial_handle_t*, void*, size_t, size_t*);
 int serial_readn(serial_handle_t*, void*, size_t);
 int serial_write(serial_handle_t*, const void*, size_t, size_t*);
 int serial_writen(serial_handle_t*, const void*, size_t);
+int serial_flush_rx(serial_handle_t*);
 
 #if CONFIG_SERIAL_DEBUG
 void serial_print(serial_handle_t*);

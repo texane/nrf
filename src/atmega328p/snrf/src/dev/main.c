@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <stddef.h>
 #include <avr/io.h>
 #include <avr/sleep.h>
 #include <avr/interrupt.h>
@@ -9,7 +10,7 @@
 
 /* snrf global variables */
 
-static uint8_t snrf_state = SNRF_STATE_CONF;
+static uint8_t snrf_state;
 
 
 /* message handlers */
@@ -46,8 +47,7 @@ static void handle_set_msg(snrf_msg_t* msg)
   }
 
   /* completion sent back, assume success */
-  msg->op = SNRF_OP_COMPL;
-  msg->u.compl.err = 0;
+  MAKE_COMPL_ERROR(msg, SNRF_ERR_SUCCESS);
 
   switch (key)
   {
@@ -56,6 +56,12 @@ static void handle_set_msg(snrf_msg_t* msg)
       if (val >= SNRF_STATE_MAX)
       {
 	MAKE_COMPL_ERROR(msg, SNRF_ERR_VAL);
+	break ;
+      }
+
+      if (val == snrf_state)
+      {
+	/* nothing */
 	break ;
       }
 
@@ -157,8 +163,7 @@ static void handle_get_msg(snrf_msg_t* msg)
   const uint8_t key = msg->u.set.key;
 
   /* completion sent back, assume success */
-  msg->op = SNRF_OP_COMPL;
-  msg->u.compl.err = 0;
+  MAKE_COMPL_ERROR(msg, SNRF_ERR_SUCCESS);
 
   switch (key)
   {
@@ -193,8 +198,7 @@ static void handle_payload_msg(snrf_msg_t* msg)
   nrf24l01p_tx_to_rx();
 
   /* fill completion status */
-  msg->op = SNRF_OP_COMPL;
-  msg->u.compl.err = 0;
+  MAKE_COMPL_ERROR(msg, SNRF_ERR_SUCCESS);
 }
 
 static void handle_msg(snrf_msg_t* msg)
@@ -241,28 +245,32 @@ static void set_led(uint8_t mask)
   pre_mask = mask;
 }
 
-static void do_nrf(void)
+static uint8_t do_nrf(void)
 {
+  /* return 0 if no msg processed, 1 otherwise */
+
   static snrf_msg_t msg;
   uint8_t i;
   uint8_t size;
 
-  while (nrf24l01p_is_rx_irq())
-  {
-    nrf24l01p_read_rx();
+  if (nrf24l01p_is_rx_irq() == 0) return 0;
 
-    size = nrf24l01p_cmd_len;
-    /* TODO: use an error message */
-    if (nrf24l01p_cmd_len > SNRF_MAX_PAYLOAD_WIDTH)
-      size = SNRF_MAX_PAYLOAD_WIDTH;
+  nrf24l01p_read_rx();
 
-    msg.op = SNRF_OP_PAYLOAD;
-    msg.u.payload.size = size;
-    for (i = 0; i < size; ++i)
-      msg.u.payload.data[i] = nrf24l01p_cmd_buf[i];
+  size = nrf24l01p_cmd_len;
+  /* TODO: use an error message */
+  if (nrf24l01p_cmd_len > SNRF_MAX_PAYLOAD_WIDTH)
+    size = SNRF_MAX_PAYLOAD_WIDTH;
 
-    uart_write((uint8_t*)&msg, sizeof(msg));
-  }
+  msg.op = SNRF_OP_PAYLOAD;
+  msg.u.payload.size = size;
+  for (i = 0; i < size; ++i)
+    msg.u.payload.data[i] = nrf24l01p_cmd_buf[i];
+
+  uart_write((uint8_t*)&msg, sizeof(msg));
+
+  /* on message handled */
+  return 1;
 }
 
 ISR(PCINT0_vect)
@@ -285,15 +293,35 @@ static inline uint8_t uart_is_rx_empty(void)
   return (UCSR0A & (1 << 7)) == 0;
 }
 
-static void do_uart(void)
+static uint8_t do_uart(void)
 {
+  /* return 0 if no msg processed, 1 otherwise */
+
   static uint8_t uart_buf[sizeof(snrf_msg_t)];
   static uint8_t uart_pos = 0;
 
+ redo_rx:
   while (uart_is_rx_empty() == 0)
   {
     uart_buf[uart_pos++] = uart_read_uint8();
-    if (uart_pos < sizeof(uart_buf)) continue ;
+    if (uart_pos != sizeof(uart_buf)) continue ;
+
+    /* synchronization */
+    if (uart_buf[offsetof(snrf_msg_t, sync)] == SNRF_SYNC_BYTE)
+    {
+      while (uart_read_uint8() != SNRF_SYNC_END) ;
+
+      uart_pos = 0;
+
+      /* set state to conf */
+      if (snrf_state != SNRF_STATE_CONF)
+      {
+	snrf_state = SNRF_STATE_CONF;
+	nrf24l01p_set_powerdown();
+      }
+
+      goto redo_rx;
+    }
 
     /* handle new message */
     handle_msg((snrf_msg_t*)uart_buf);
@@ -303,7 +331,13 @@ static void do_uart(void)
 
     /* pos is modulo buf size */
     uart_pos = 0;
+
+    /* a message has been handled */
+    return 1;
   }
+
+  /* no message handled */
+  return 0;
 }
 
 ISR(USART_RX_vect)
@@ -316,6 +350,9 @@ ISR(USART_RX_vect)
 
 int main(void)
 {
+  /* default state to conf */
+  snrf_state = SNRF_STATE_CONF;
+
   /* setup spi first */
   spi_setup_master();
   spi_set_sck_freq(SPI_SCK_FREQ_FOSC2);
@@ -377,8 +414,13 @@ int main(void)
     sleep_disable();
     cli();
 
-    do_uart();
-    do_nrf();
+    /* alternate do_{uart,nrf} to avoid starvation */
+    while (1)
+    {
+      uint8_t is_msg = do_uart();
+      if (snrf_state != SNRF_STATE_CONF) is_msg |= do_nrf();
+      if (is_msg == 0) break ;
+    }
 
     sleep_enable();
     sleep_bod_disable();
