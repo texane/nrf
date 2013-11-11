@@ -34,6 +34,18 @@ static inline uint32_t le_to_uint32(uint32_t x)
   return x;
 }
 
+static uint32_t buf_to_uint32(const uint8_t* buf)
+{
+  uint32_t x = 0;
+
+  x |= ((uint32_t)buf[0]) << 24;
+  x |= ((uint32_t)buf[1]) << 16;
+  x |= ((uint32_t)buf[2]) << 8;
+  x |= ((uint32_t)buf[3]) << 0;
+
+  return x;
+}
+
 static void handle_set_msg(snrf_msg_t* msg)
 {
   /* capture before modifying */
@@ -116,7 +128,7 @@ static void handle_set_msg(snrf_msg_t* msg)
 #endif
       };
       if (val >= ARRAY_COUNT(map)) MAKE_COMPL_ERROR(msg, SNRF_ERR_VAL);
-      else nrf24l01p_set_rate(map[val]);
+      else nrf24l01p_set_addr_width(map[val]);
       break ;
     }
 
@@ -170,6 +182,81 @@ static void handle_get_msg(snrf_msg_t* msg)
   case SNRF_KEY_STATE:
     msg->u.compl.val = uint32_to_le(snrf_state);
     break ;
+
+  case SNRF_KEY_CRC:
+    {
+      const uint8_t x = nrf24l01p_read_reg8(NRF24L01P_REG_CONFIG);
+      if ((x & (1 << 3)) == 0) msg->u.compl.val = uint32_to_le(0);
+      else if ((x & (1 << 2)) == 0) msg->u.compl.val = uint32_to_le(1);
+      else msg->u.compl.val = uint32_to_le(2);
+      break ;
+    }
+
+  case SNRF_KEY_RATE:
+    {
+      const uint8_t x = nrf24l01p_read_reg8(NRF24L01P_REG_RF_SETUP);
+      static const uint8_t map[] =
+      {
+	NRF24L01P_RATE_1MBPS,
+	NRF24L01P_RATE_2MBPS,
+	NRF24L01P_RATE_250KBPS,
+	NRF24L01P_RATE_250KBPS,
+	NRF24L01P_RATE_250KBPS
+      };
+      msg->u.compl.val = uint32_to_le(map[(x >> 3) & 5]);
+      break ;
+    }
+
+  case SNRF_KEY_CHAN:
+    {
+      const uint8_t x = nrf24l01p_read_reg8(NRF24L01P_REG_RF_CH);
+      msg->u.compl.val = uint32_to_le(x);
+      break ;
+    }
+
+  case SNRF_KEY_ADDR_WIDTH:
+    {
+      static const uint8_t map[] =
+      {
+	0xff, /* invalid */
+	0, /* width = 3 */
+	1, /* width = 4 */
+	2 /* width = 5 */
+      };
+
+      const uint8_t x = nrf24l01p_read_reg8(NRF24L01P_REG_SETUP_AW);
+      msg->u.compl.val = uint32_to_le(map[x & 3]);
+      break ;
+    }
+
+  case SNRF_KEY_RX_ADDR:
+    {
+      nrf24l01p_read_reg40(NRF24L01P_REG_RX_ADDR_P0);
+      msg->u.compl.val = uint32_to_le(buf_to_uint32(nrf24l01p_cmd_buf));
+      break ;
+    }
+
+  case SNRF_KEY_TX_ADDR:
+    {
+      nrf24l01p_read_reg40(NRF24L01P_REG_TX_ADDR);
+      msg->u.compl.val = uint32_to_le(buf_to_uint32(nrf24l01p_cmd_buf));
+      break ;
+    }
+
+  case SNRF_KEY_TX_ACK:
+    {
+      const uint8_t x = nrf24l01p_read_reg8(NRF24L01P_REG_FEATURE);
+      if (x & (1 << 0)) msg->u.compl.val = uint32_to_le(0);
+      else msg->u.compl.val = uint32_to_le(1);
+      break ;
+    }
+
+  case SNRF_KEY_PAYLOAD_WIDTH:
+    {
+      const uint8_t x = nrf24l01p_read_reg8(NRF24L01P_REG_RX_PW_P0);
+      msg->u.compl.val = uint32_to_le(x);
+      break ;
+    }
 
   default:
     MAKE_COMPL_ERROR(msg, SNRF_ERR_KEY);

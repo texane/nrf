@@ -40,6 +40,7 @@ int main(int ac, char** av)
 {
   const char* const op = av[1];
   snrf_handle_t snrf;
+  int err = -1;
 
   if (snrf_open(&snrf))
   {
@@ -142,7 +143,7 @@ int main(int ac, char** av)
       goto on_error_1;
     }
 
-    printf("val: 0x%08x\n", val);
+    printf("0x%08x\n", val);
   }
   else
   {
@@ -150,8 +151,11 @@ int main(int ac, char** av)
     goto on_error_1;
   }
 
+  /* success */
+  err = 0;
+
  on_error_1:
   snrf_close(&snrf);
  on_error_0:
-  return 0;
+  return err;
 }
