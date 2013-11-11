@@ -25,6 +25,17 @@ static void print_buf(const uint8_t* buf, size_t size)
   printf("\n");
 }
 
+static uint32_t get_uint32(const char* s)
+{
+  const size_t len = strlen(s);
+  int base;
+
+  if ((len >= 2) && (s[0] == '0') && (s[1] == 'x')) base = 16;
+  else base = 10;
+
+  return (uint32_t)strtoul(s, NULL, base);
+}
+
 int main(int ac, char** av)
 {
   const char* const op = av[1];
@@ -99,8 +110,8 @@ int main(int ac, char** av)
   }
   else if (strcmp(op, "set") == 0)
   {
-    const uint8_t key = atoi(av[2]);
-    const uint32_t val = atoi(av[3]);
+    const uint8_t key = get_uint32(av[2]);
+    const uint32_t val = get_uint32(av[3]);
 
     if (snrf_set_keyval(&snrf, SNRF_KEY_STATE, SNRF_STATE_CONF))
     {
@@ -116,7 +127,7 @@ int main(int ac, char** av)
   }
   else if (strcmp(op, "get") == 0)
   {
-    const uint8_t key = atoi(av[2]);
+    const uint8_t key = get_uint32(av[2]);
     uint32_t val;
 
     if (snrf_set_keyval(&snrf, SNRF_KEY_STATE, SNRF_STATE_CONF))
