@@ -233,6 +233,7 @@ int main(int ac, char** av)
     const int fd = snrf_get_fd(&snrf);
 
     uint8_t buf[SNRF_MAX_PAYLOAD_WIDTH];
+    size_t count;
     size_t size;
     fd_set set;
 
@@ -242,24 +243,32 @@ int main(int ac, char** av)
       goto on_error_1;
     }
 
-    memset(buf, 0x2a, sizeof(buf));
+    if (ac > 2) count = (size_t)get_uint32(av[2]);
+    else count = (size_t)-1;
 
-    FD_ZERO(&set);
-    FD_SET(fd, &set);
-
-    if (select(fd + 1, &set, NULL, NULL, NULL) <= 0)
+    while (count)
     {
-      PERROR();
-      goto on_error_1;
-    }
+      memset(buf, 0x2a, sizeof(buf));
 
-    if (snrf_read_payload(&snrf, buf, &size))
-    {
-      PERROR();
-      goto on_error_1;
-    }
+      FD_ZERO(&set);
+      FD_SET(fd, &set);
 
-    print_buf(buf, size);
+      if (select(fd + 1, &set, NULL, NULL, NULL) <= 0)
+      {
+	PERROR();
+	goto on_error_1;
+      }
+
+      if (snrf_read_payload(&snrf, buf, &size))
+      {
+	PERROR();
+	goto on_error_1;
+      }
+
+      print_buf(buf, size);
+
+      if (count != (size_t)-1) --count;
+    }
   }
   else if (strcmp(op, "write") == 0)
   {
