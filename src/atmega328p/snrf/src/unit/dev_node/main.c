@@ -179,7 +179,7 @@ int main(void)
 
   /* disable timer */
   /* timer_disable(); */
-  timer_count_hi = 2;
+  timer_count_hi = 1;
   timer_enable();
 
   /* timer and pinchange int wakeup sources */
