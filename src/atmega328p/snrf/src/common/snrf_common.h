@@ -23,6 +23,20 @@
 #define SNRF_STATE_TXRX 1
 #define SNRF_STATE_MAX 2
 
+#define SNRF_CRC_DISABLED 0
+#define SNRF_CRC_8 1
+#define SNRF_CRC_16 2
+
+#define SNRF_RATE_250KBPS 0
+#define SNRF_RATE_1MBPS 1
+#define SNRF_RATE_2MBPS 2
+
+#define SNRF_ADDR_WIDTH_3 0
+#define SNRF_ADDR_WIDTH_4 1
+
+#define SNRF_TX_ACK_DISABLED 0
+#define SNRF_TX_ACK_ENABLED 1
+
 #define SNRF_ERR_SUCCESS 0
 #define SNRF_ERR_FAILURE 1
 #define SNRF_ERR_OP 2

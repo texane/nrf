@@ -93,9 +93,9 @@ static void handle_set_msg(snrf_msg_t* msg)
     }
 
   case SNRF_KEY_CRC:
-    if (val == 0) nrf24l01p_disable_crc();
-    else if (val == 1) nrf24l01p_enable_crc8();
-    else if (val == 2) nrf24l01p_enable_crc16();
+    if (val == SNRF_CRC_DISABLED) nrf24l01p_disable_crc();
+    else if (val == SNRF_CRC_8) nrf24l01p_enable_crc8();
+    else if (val == SNRF_CRC_16) nrf24l01p_enable_crc16();
     else MAKE_COMPL_ERROR(msg, SNRF_ERR_VAL);
     break ;
 
