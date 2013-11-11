@@ -241,32 +241,35 @@ static void set_led(uint8_t mask)
   pre_mask = mask;
 }
 
-ISR(PCINT0_vect)
+static void do_nrf(void)
 {
   static snrf_msg_t msg;
   uint8_t i;
   uint8_t size;
 
-  /* pin change 0 interrupt handler */
-  if (nrf24l01p_is_rx_irq() == 0)
+  while (nrf24l01p_is_rx_irq())
   {
-    if (nrf24l01p_is_rx_full()) nrf24l01p_flush_rx();
-    return ;
+    nrf24l01p_read_rx();
+
+    size = nrf24l01p_cmd_len;
+    /* TODO: use an error message */
+    if (nrf24l01p_cmd_len > SNRF_MAX_PAYLOAD_WIDTH)
+      size = SNRF_MAX_PAYLOAD_WIDTH;
+
+    msg.op = SNRF_OP_PAYLOAD;
+    msg.u.payload.size = size;
+    for (i = 0; i < size; ++i)
+      msg.u.payload.data[i] = nrf24l01p_cmd_buf[i];
+
+    uart_write((uint8_t*)&msg, sizeof(msg));
   }
+}
 
-  nrf24l01p_read_rx();
-
-  size = nrf24l01p_cmd_len;
-  /* TODO: use an error message */
-  if (nrf24l01p_cmd_len > SNRF_MAX_PAYLOAD_WIDTH)
-    size = SNRF_MAX_PAYLOAD_WIDTH;
-
-  msg.op = SNRF_OP_PAYLOAD;
-  msg.u.payload.size = size;
-  for (i = 0; i < size; ++i)
-    msg.u.payload.data[i] = nrf24l01p_cmd_buf[i];
-
-  uart_write((uint8_t*)&msg, sizeof(msg));
+ISR(PCINT0_vect)
+{
+  /* pin change 0 interrupt handler */
+  /* do not handle here, otherwise compl */
+  /* msg may get mixed with nrf payload */
 }
 
 
@@ -282,28 +285,31 @@ static inline uint8_t uart_is_rx_empty(void)
   return (UCSR0A & (1 << 7)) == 0;
 }
 
-static inline uint8_t uart_peek_one(void)
-{
-  return UDR0;
-}
-
-ISR(USART_RX_vect)
+static void do_uart(void)
 {
   static uint8_t uart_buf[sizeof(snrf_msg_t)];
   static uint8_t uart_pos = 0;
 
-  if (uart_is_rx_empty()) return ;
+  while (uart_is_rx_empty() == 0)
+  {
+    uart_buf[uart_pos++] = uart_read_uint8();
+    if (uart_pos < sizeof(uart_buf)) continue ;
 
-  uart_buf[uart_pos++] = uart_peek_one();
-  if (uart_pos < sizeof(uart_buf)) return ;
+    /* handle new message */
+    handle_msg((snrf_msg_t*)uart_buf);
 
-  /* handle new message */
-  handle_msg((snrf_msg_t*)uart_buf);
+    /* send completion */
+    uart_write(uart_buf, sizeof(uart_buf));
 
-  uart_write(uart_buf, sizeof(uart_buf));
+    /* pos is modulo buf size */
+    uart_pos = 0;
+  }
+}
 
-  /* pos is modulo buf size */
-  uart_pos = 0;
+ISR(USART_RX_vect)
+{
+  /* do not handle here, otherwise compl */
+  /* msg may get mixed with nrf payload */
 }
 
 /* main */
@@ -365,13 +371,21 @@ int main(void)
 
   /* uart and pinchange int wakeup sources */
   set_sleep_mode(SLEEP_MODE_IDLE);
-  sleep_enable();
-  sleep_bod_disable();
 
-  /* enable interrupts */
-  sei();
+  while (1)
+  {
+    sleep_disable();
+    cli();
 
-  while (1) sleep_cpu();
+    do_uart();
+    do_nrf();
+
+    sleep_enable();
+    sleep_bod_disable();
+    /* atomic, no int schedule between sei and sleep_cpu */
+    sei();
+    sleep_cpu();
+  }
 
   return 0;
 }

@@ -111,7 +111,10 @@ static int wait_msg_n
       return -1;
     }
 
-    if (msg->op == op) break ;
+    if (msg->op == op)
+    {
+      return 0;
+    }
 
     /* put in msg queue, append at tail */
     node = malloc(sizeof(snrf_msg_node_t));

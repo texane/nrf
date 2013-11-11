@@ -53,6 +53,8 @@ int main(int ac, char** av)
       goto on_error_1;
     }
 
+    memset(buf, 0x2a, sizeof(buf));
+
     FD_ZERO(&set);
     FD_SET(fd, &set);
 
