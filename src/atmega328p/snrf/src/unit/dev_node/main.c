@@ -178,9 +178,9 @@ int main(void)
   PCMSK0 |= 1 << 1;
 
   /* disable timer */
-  /* timer_disable(); */
-  timer_count_hi = 1;
-  timer_enable();
+  timer_disable();
+  /* timer_count_hi = 1; */
+  /* timer_enable(); */
 
   /* timer and pinchange int wakeup sources */
   set_sleep_mode(SLEEP_MODE_IDLE);

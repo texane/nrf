@@ -43,13 +43,32 @@ static void uart_write(uint8_t* s, uint8_t n)
   }
 
   /* wait for last byte to be sent */
-  while ((UCSR0A & (1 << 6)) == 0) ;
+  while ((UCSR0A & (1 << TXC0)) == 0) ;
 }
 
-static uint8_t uart_read_uint8(void)
+static uint8_t uart_read_uint8(uint8_t* x)
 {
-  while ((UCSR0A & (1 << 7)) == 0) ;
-  return UDR0;
+  /* return non zero on error */
+
+  while ((UCSR0A & (1 << RXC0)) == 0) ;
+
+  if (UCSR0A & ((1 << FE0) | (1 << DOR0) | (1 << UPE0)))
+    return -1;
+
+  *x = UDR0;
+
+  return 0;
+}
+
+static void uart_flush_rx(void)
+{
+  volatile uint8_t x;
+
+  while (UCSR0A & (1 << RXC0))
+  {
+    x = UDR0;
+    __asm__ __volatile__ ("nop" ::"m"(x));
+  }
 }
 
 static inline uint8_t nibble(uint32_t x, uint8_t i)

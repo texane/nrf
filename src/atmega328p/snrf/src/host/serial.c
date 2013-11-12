@@ -230,9 +230,9 @@ void serial_close(serial_handle_t* h)
 }
 
 
-int serial_flush_rx(serial_handle_t* serial)
+int serial_flush_txrx(serial_handle_t* serial)
 {
-  if (tcflush(serial->fd, TCIFLUSH))
+  if (tcflush(serial->fd, TCIOFLUSH))
   {
     perror("tcflush");
     return -1;
@@ -312,10 +312,7 @@ int serial_get_conf(serial_handle_t* h,
 }
 
 
-int serial_read(serial_handle_t* h,
-		void* buf,
-		size_t size,
-		size_t* nread)
+int serial_read(serial_handle_t* h, void* buf,	size_t size, size_t* nread)
 {
   ssize_t n;
 
@@ -324,10 +321,10 @@ int serial_read(serial_handle_t* h,
   n = read(h->fd, buf, size);
 
   if (n == -1)
-    {
-      DEBUG_ERROR("read() == %u\n", errno);
-      return -1;
-    }
+  {
+    DEBUG_ERROR("read() == %u\n", errno);
+    return -1;
+  }
 
   *nread = n;
 
@@ -340,20 +337,19 @@ int serial_readn(serial_handle_t* h, void* buf, size_t size)
   ssize_t n;
 
   while (size)
+  {
+    n = read(h->fd, buf, size);
+    if (n < 0)
     {
-      n = read(h->fd, buf, size);
-
-      if (n < 0)
-	{
-	  perror("read()\n");
-	  return -1;
-	}
-      else if (n)
-	{
-	  size -= n;
-	  buf = (unsigned char*)buf + n;
-	}
+      perror("read()\n");
+      return -1;
     }
+    else if (n)
+    {
+      size -= n;
+      buf = (unsigned char*)buf + n;
+    }
+  }
 
   return 0;
 }
@@ -364,41 +360,37 @@ int serial_writen(serial_handle_t* h, const void* buf, size_t size)
   ssize_t n;
 
   while (size)
+  {
+    n = write(h->fd, buf, size);
+    if (n < 0)
     {
-      n = write(h->fd, buf, size);
-
-      if (n < 0)
-	{
-	  perror("write()\n");
-	  return -1;
-	}
-      else if (n)
-	{
-	  size -= n;
-	  buf = (unsigned char*)buf + n;
-	}
+      perror("write()\n");
+      return -1;
     }
+    else if (n)
+    {
+      size -= n;
+      buf = (unsigned char*)buf + n;
+    }
+  }
 
   return 0;
 }
 
 
-int serial_write(serial_handle_t* h,
-		 const void* buf,
-		 size_t size,
-		 size_t* nwritten)
+int serial_write
+(serial_handle_t* h, const void* buf, size_t size, size_t* nwritten)
 {
   ssize_t n;
 
   *nwritten = 0;
 
   n = write(h->fd, buf, size);
-
   if (n == -1)
-    {
-      DEBUG_ERROR("write() == %u\n", errno);
-      return -1;
-    }
+  {
+    DEBUG_ERROR("write() == %u\n", errno);
+    return -1;
+  }
 
   *nwritten = n;
 

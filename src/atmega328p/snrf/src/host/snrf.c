@@ -245,7 +245,6 @@ int snrf_set_keyval(snrf_handle_t* snrf, uint8_t key, uint32_t val)
 
   if (msg.u.compl.err != SNRF_ERR_SUCCESS)
   {
-    printf("err == %u\n", msg.u.compl.val);
     SNRF_PERROR();
     return -1;
   }
@@ -275,7 +274,6 @@ int snrf_get_keyval(snrf_handle_t* snrf, uint8_t key, uint32_t* val)
 
   if (msg.u.compl.err)
   {
-    printf("%x, %u\n", msg.u.compl.err, msg.u.compl.val);
     SNRF_PERROR();
     return -1;
   }
@@ -294,7 +292,7 @@ int snrf_sync(snrf_handle_t* snrf)
 
   for (i = 0; i < (4 * sizeof(snrf_msg_t)); ++i)
   {
-    usleep(10000);
+    usleep(1000);
     if (serial_writen(&snrf->serial, &sync_byte, 1))
     {
       SNRF_PERROR();
@@ -302,7 +300,9 @@ int snrf_sync(snrf_handle_t* snrf)
     }
   }
 
-  if (serial_flush_rx(&snrf->serial))
+  usleep(100000);
+
+  if (serial_flush_txrx(&snrf->serial))
   {
     SNRF_PERROR();
     return -1;

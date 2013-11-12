@@ -310,8 +310,7 @@ static void handle_msg(snrf_msg_t* msg)
   }
 }
 
-
-/* led, debugging */
+#if 0 /* unused */
 
 static void set_led(uint8_t mask)
 {
@@ -331,6 +330,8 @@ static void set_led(uint8_t mask)
 
   pre_mask = mask;
 }
+
+#endif /* unused */
 
 static uint8_t do_nrf(void)
 {
@@ -387,16 +388,32 @@ static uint8_t do_uart(void)
   static uint8_t uart_buf[sizeof(snrf_msg_t)];
   static uint8_t uart_pos = 0;
 
- redo_rx:
+  uint8_t x;
+
   while (uart_is_rx_empty() == 0)
   {
-    uart_buf[uart_pos++] = uart_read_uint8();
-    if (uart_pos != sizeof(uart_buf)) continue ;
+    if (uart_read_uint8(&uart_buf[uart_pos++]))
+    {
+      /* abort on error */
+      uart_flush_rx();
+      uart_pos = 0;
+      continue ;
+    }
+
+    if (uart_pos != sizeof(uart_buf))
+    {
+      continue ;
+    }
 
     /* synchronization */
     if (uart_buf[offsetof(snrf_msg_t, sync)] == SNRF_SYNC_BYTE)
     {
-      while (uart_read_uint8() != SNRF_SYNC_END) ;
+      while (1)
+      {
+	/* do not stop on error during sync */
+	if (uart_read_uint8(&x)) continue ;
+	if (x == SNRF_SYNC_END) break ;
+      }
 
       uart_pos = 0;
 
@@ -407,7 +424,8 @@ static uint8_t do_uart(void)
 	nrf24l01p_set_powerdown();
       }
 
-      goto redo_rx;
+      /* redo rx */
+      continue ;
     }
 
     /* handle new message */

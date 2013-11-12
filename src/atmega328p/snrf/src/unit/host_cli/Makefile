@@ -4,12 +4,12 @@ CFLAGS := -Wall -O2 -I../../common -I../../host -I.
 SRCS := main.c
 OBJS := $(SRCS:.c=.o)
 
-all: ../../host/libsnrf.a a.out
+all: a.out
 
 ../../host/libsnrf.a:
 	cd ../../host && make
 
-a.out:	$(OBJS)
+a.out:	../../host/libsnrf.a $(OBJS)
 	$(CC) $(CFLAGS) -o $@ $(OBJS) -L../../host -lsnrf
 
 %.o: %.c
@@ -21,4 +21,4 @@ clean:
 fclean:	clean
 	-rm a.out
 
-.PHONY: all clean fclean
+.PHONY: all clean fclean ../../host/libsnrf.a
