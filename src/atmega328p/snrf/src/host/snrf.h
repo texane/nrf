@@ -28,6 +28,8 @@ int snrf_write_payload(snrf_handle_t*, const uint8_t*, size_t);
 int snrf_read_payload(snrf_handle_t*, uint8_t*, size_t*);
 int snrf_set_keyval(snrf_handle_t*, uint8_t, uint32_t);
 int snrf_get_keyval(snrf_handle_t*, uint8_t, uint32_t*);
+int snrf_get_pending_msg(snrf_handle_t*, snrf_msg_t*);
+int snrf_read_msg(snrf_handle_t*, snrf_msg_t*);
 
 static inline int snrf_get_fd(snrf_handle_t* snrf)
 {

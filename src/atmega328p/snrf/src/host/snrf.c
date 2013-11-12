@@ -414,3 +414,33 @@ int snrf_sync(snrf_handle_t* snrf)
 
   return 0;
 }
+
+int snrf_get_pending_msg(snrf_handle_t* snrf, snrf_msg_t* msg)
+{
+  snrf_msg_node_t* const node = snrf->msg_head;
+
+  if (snrf->msg_head == NULL)
+  {
+    SNRF_PERROR();
+    return -1;
+  }
+
+  if (snrf->msg_head == snrf->msg_tail) snrf->msg_tail = NULL;
+  snrf->msg_head = node->next;
+
+  memcpy(msg, &node->msg, sizeof(snrf_msg_t));
+  free(node);
+
+  return 0;
+}
+
+int snrf_read_msg(snrf_handle_t* snrf, snrf_msg_t* msg)
+{
+  /* TODO */
+  /* this routine assumes the whole message can be read */
+  /* without blocking. snrf handle should have an internal */
+  /* rx buffer that is completed  with what is read, then */
+  /* returns success if a full msg is available */
+
+  return read_msg(snrf, msg, NULL);
+}
