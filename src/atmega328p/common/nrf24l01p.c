@@ -468,7 +468,7 @@ static void nrf24l01p_disable_art(void)
   /* disable automatic retransmission */
 }
 
-static uint8_t nrf24l01p_read_irqs(void)
+static uint8_t nrf24l01p_read_irqs(uint8_t mask)
 {
   /* read and reset the irq bits if required */
 
@@ -477,7 +477,7 @@ static uint8_t nrf24l01p_read_irqs(void)
   /* irq signal is active low */
   if ((NRF24L01P_IO_IRQ_PIN & NRF24L01P_IO_IRQ_MASK) == 0)
   {
-    x = nrf24l01p_read_status();
+    x = nrf24l01p_read_status() & mask;
     /* reset irq by writing back 1s to the source bits */
     nrf24l01p_write_status(x);
   }
@@ -485,16 +485,16 @@ static uint8_t nrf24l01p_read_irqs(void)
   return x;
 }
 
-static inline unsigned int nrf24l01p_is_rx_irq(void)
+static inline uint8_t nrf24l01p_is_rx_irq(void)
 {
   /* return non zero if rx related interrupt */
-  return nrf24l01p_read_irqs() & NRF24L01P_IRQ_MASK_RX_DR;
+  return nrf24l01p_read_irqs(NRF24L01P_IRQ_MASK_RX_DR);
 }
 
-static inline unsigned int nrf24l01p_is_tx_irq(void)
+static inline uint8_t nrf24l01p_is_tx_irq(void)
 {
   /* return non zero if tx related interrupt */
-  return nrf24l01p_read_irqs() & NRF24L01P_IRQ_MASK_TX_DS;
+  return nrf24l01p_read_irqs(NRF24L01P_IRQ_MASK_TX_DS);
 }
 
 static inline uint8_t nrf24l01p_is_rx_irq_noread(void)
