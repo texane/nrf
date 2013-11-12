@@ -116,6 +116,13 @@ static int select_read(int fd, struct timeval* tm)
   if (tm != NULL)
   {
     timersub(&tm_stop, &tm_start, &tm_diff);
+
+    if (timercmp(&tm_diff, tm, >))
+    {
+      tm_diff.tv_sec = tm->tv_sec;
+      tm_diff.tv_usec = tm->tv_usec;
+    }
+
     /* use tm_start as a tmp result */
     timersub(tm, &tm_diff, &tm_start);
     tm->tv_sec = tm_start.tv_sec;
@@ -240,12 +247,24 @@ static int write_wait_msg(snrf_handle_t* snrf, snrf_msg_t* msg)
   }
   else if (err == -2)
   {
+    const uint8_t saved_state = snrf->state;
+
     if (snrf_sync(snrf))
     {
       SNRF_PERROR();
       return -1;
     }
+
+    /* restore previous state */
+    if (snrf_set_keyval(snrf, SNRF_KEY_STATE, saved_state))
+    {
+      SNRF_PERROR();
+      return -1;
+    }
+
+    /* restore message contents to redo */
     memcpy(msg, &saved_msg, sizeof(snrf_msg_t));
+
     goto redo_msg;
   }
 
@@ -355,6 +374,8 @@ int snrf_set_keyval(snrf_handle_t* snrf, uint8_t key, uint32_t val)
     return -1;
   }
 
+  if (key == SNRF_KEY_STATE) snrf->state = (uint8_t)val;
+
   return 0;
 }
 
@@ -413,6 +434,8 @@ int snrf_sync(snrf_handle_t* snrf)
     SNRF_PERROR();
     return -1;
   }
+
+  snrf->state = SNRF_STATE_CONF;
 
   return 0;
 }
