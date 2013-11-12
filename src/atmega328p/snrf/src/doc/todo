@@ -1,0 +1,21 @@
+[ receiver lost bytes ]
+
+data must be capture asap in the interrupt handler
+ -> both for uart and nrf, but do first for uart
+they must be handled afterward
+if an overflow occurs, because the buffer is filled
+too fast for the soft to process it, then introduce
+a missed byte flag and possibly alert the host
+
+loosing uart bytes is especially likely when nrf data
+are received in burst from the nrf, as interrupt are
+-> mask interrupt consistently using the interrupt
+mask
+
+
+[ invalid bytes ]
+
+use a 8/16 bits CRC to detect invalid frame. maintain
+a counter and send alert to host.
+http://www.ece.cmu.edu/~koopman/crc/index.html
+http://en.wikipedia.org/wiki/IPv4_header_checksum
