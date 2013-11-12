@@ -27,7 +27,7 @@ static void timer_enable(void)
   /* fcpu / (1024 * 15625) = 1 hz */
 
   /* stop timer */
-  TCCR0B = 0;
+  TCCR1B = 0;
 
   /* CTC mode, overflow when OCR1A reached */
   TCCR1A = 0;
@@ -45,7 +45,7 @@ static void timer_enable(void)
 
 static void timer_disable(void)
 {
-  TCCR0B = 0;
+  TCCR1B = 0;
 }
 
 /* nrf tx rx logic */
