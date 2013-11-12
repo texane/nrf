@@ -16,9 +16,18 @@ typedef struct snrf_msg_node
 typedef struct snrf_handle
 {
   serial_handle_t serial;
+
+  /* list of pending received messages */
   snrf_msg_node_t* msg_head;
   snrf_msg_node_t* msg_tail;
+
+  /* snrf_state_xxx */
   uint32_t state;
+
+  /* message rx buffer */
+  uint8_t msg_rbuf[sizeof(snrf_msg_t)];
+  size_t msg_rpos;
+
 } snrf_handle_t;
 
 int snrf_open(snrf_handle_t*);
@@ -34,11 +43,6 @@ int snrf_read_msg(snrf_handle_t*, snrf_msg_t*);
 static inline int snrf_get_fd(snrf_handle_t* snrf)
 {
   return snrf->serial.fd;
-}
-
-static inline int snrf_is_pending_msg(snrf_handle_t* snrf)
-{
-  return snrf->msg_head != NULL;
 }
 
 

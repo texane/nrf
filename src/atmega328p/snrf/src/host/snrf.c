@@ -58,6 +58,8 @@ int snrf_open(snrf_handle_t* snrf)
   snrf->msg_head = NULL;
   snrf->msg_tail = NULL;
 
+  snrf->msg_rpos = 0;
+
   return 0;
 
  on_error_1:
@@ -419,11 +421,7 @@ int snrf_get_pending_msg(snrf_handle_t* snrf, snrf_msg_t* msg)
 {
   snrf_msg_node_t* const node = snrf->msg_head;
 
-  if (snrf->msg_head == NULL)
-  {
-    SNRF_PERROR();
-    return -1;
-  }
+  if (snrf->msg_head == NULL) return -1;
 
   if (snrf->msg_head == snrf->msg_tail) snrf->msg_tail = NULL;
   snrf->msg_head = node->next;
@@ -436,11 +434,31 @@ int snrf_get_pending_msg(snrf_handle_t* snrf, snrf_msg_t* msg)
 
 int snrf_read_msg(snrf_handle_t* snrf, snrf_msg_t* msg)
 {
-  /* TODO */
-  /* this routine assumes the whole message can be read */
-  /* without blocking. snrf handle should have an internal */
-  /* rx buffer that is completed  with what is read, then */
-  /* returns success if a full msg is available */
+  /* return 0 if a message is available */
+  /* return -1 if there was a read error */
+  /* return -2 if read success, but no message */
 
-  return read_msg(snrf, msg, NULL);
+  const size_t size = sizeof(snrf_msg_t) - snrf->msg_rpos;
+  uint8_t* const buf = snrf->msg_rbuf + snrf->msg_rpos;
+  size_t nread;
+
+  if (serial_read(&snrf->serial, buf, size, &nread))
+  {
+    SNRF_PERROR();
+    return -1;
+  }
+
+  snrf->msg_rpos += nread;
+
+  if (snrf->msg_rpos != sizeof(snrf_msg_t))
+  {
+    /* full message not yet available */
+    return -2;
+  }
+
+  /* full message available, copy in msg */
+  snrf->msg_rpos = 0;
+  memcpy(msg, snrf->msg_rbuf, sizeof(snrf_msg_t));
+
+  return 0;
 }
