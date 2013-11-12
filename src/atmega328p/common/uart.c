@@ -50,14 +50,19 @@ static uint8_t uart_read_uint8(uint8_t* x)
 {
   /* return non zero on error */
 
+  uint8_t err = 0;
+
   while ((UCSR0A & (1 << RXC0)) == 0) ;
 
   if (UCSR0A & ((1 << FE0) | (1 << DOR0) | (1 << UPE0)))
-    return -1;
+  {
+    /* clear errors by reading URD0 */
+    err = 1;
+  }
 
   *x = UDR0;
 
-  return 0;
+  return err;
 }
 
 static void uart_flush_rx(void)
