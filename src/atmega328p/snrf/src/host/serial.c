@@ -312,7 +312,7 @@ int serial_get_conf(serial_handle_t* h,
 }
 
 
-int serial_read(serial_handle_t* h, void* buf,	size_t size, size_t* nread)
+int serial_read(serial_handle_t* h, void* buf, size_t size, size_t* nread)
 {
   ssize_t n;
 

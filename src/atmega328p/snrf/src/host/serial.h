@@ -68,6 +68,10 @@ int serial_flush_txrx(serial_handle_t*);
 void serial_print(serial_handle_t*);
 #endif
 
+static inline int serial_get_fd(serial_handle_t* serial)
+{
+  return serial->fd;
+}
 
 
 #endif /* ! SERIAL_H_INCLUDED */

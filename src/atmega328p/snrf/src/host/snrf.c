@@ -93,28 +93,100 @@ static int write_msg(snrf_handle_t* snrf, snrf_msg_t* msg)
   return 0;
 }
 
-static int read_msg(snrf_handle_t* snrf, snrf_msg_t* msg)
+static int select_read(int fd, struct timeval* tm)
 {
-  if (serial_readn(&snrf->serial, (void*)msg, sizeof(*msg)))
+  /* ms the timeout in milliseconds */
+
+  struct timeval tm_start;
+  struct timeval tm_stop;
+  struct timeval tm_diff;
+  fd_set set;
+  int err;
+
+  FD_ZERO(&set);
+  FD_SET(fd, &set);
+
+  gettimeofday(&tm_start, NULL);
+  err = select(fd + 1, &set, NULL, NULL, tm);
+  gettimeofday(&tm_stop, NULL);
+
+  /* update timer */
+  if (tm != NULL)
   {
-    SNRF_PERROR();
-    return -1;
+    timersub(&tm_stop, &tm_start, &tm_diff);
+    /* use tm_start as a tmp result */
+    timersub(tm, &tm_diff, &tm_start);
+    tm->tv_sec = tm_start.tv_sec;
+    tm->tv_usec = tm_start.tv_usec;
+  }
+
+  return err;
+}
+
+static int read_msg(snrf_handle_t* snrf, snrf_msg_t* msg, struct timeval* tm)
+{
+  uint8_t* buf;
+  size_t size;
+  size_t nread;
+  int err;
+
+  buf = (uint8_t*)msg;
+  size = sizeof(snrf_msg_t);
+
+  while (size)
+  {
+    err = select_read(serial_get_fd(&snrf->serial), tm);
+    if (err < 0)
+    {
+      SNRF_PERROR();
+      return -1;
+    }
+    else if (err == 0)
+    {
+      /* timeout */
+      return -2;
+    }
+    /* else */
+
+    if (serial_read(&snrf->serial, buf, size, &nread))
+    {
+      SNRF_PERROR();
+      return -1;
+    }
+
+    buf += nread;
+    size -= nread;
   }
 
   return 0;
 }
 
-static int wait_msg_n
-(snrf_handle_t* snrf, uint8_t op, snrf_msg_t* msg, size_t n)
+static int wait_msg
+(snrf_handle_t* snrf, uint8_t op, snrf_msg_t* msg, unsigned int ms)
 {
-  snrf_msg_node_t* node;
+  /* ms the timeout in milliseconds or -1 */
 
-  for (; n; --n)
+  snrf_msg_node_t* node;
+  int err;
+  struct timeval tm;
+  struct timeval* p;
+
+  p = NULL;
+  if (ms != (unsigned int)-1)
   {
-    if (read_msg(snrf, msg))
+    tm.tv_sec = ms / 1000;
+    tm.tv_usec = (ms % 1000) * 1000;
+    p = &tm;
+  }
+
+  while (1)
+  {
+    err = read_msg(snrf, msg, p);
+
+    if (err < 0)
     {
       SNRF_PERROR();
-      return -1;
+      return err;
     }
 
     if (msg->op == op)
@@ -131,13 +203,51 @@ static int wait_msg_n
     snrf->msg_tail = node;
   }
 
-  /* n reached */
-  return -2;
+  /* not reached */
+  return 0;
 }
 
-static int wait_msg(snrf_handle_t* snrf, uint8_t op, snrf_msg_t* msg)
+static int write_wait_msg(snrf_handle_t* snrf, snrf_msg_t* msg)
 {
-  return wait_msg_n(snrf, op, msg, (size_t)-1);
+  /* resynchronize if needed */
+
+  snrf_msg_t saved_msg;
+  unsigned int n = 0;
+  int err;
+
+  memcpy(&saved_msg, msg, sizeof(snrf_msg_t));
+
+ redo_msg:
+  if ((++n) == 4)
+  {
+    SNRF_PERROR();
+    return -1;
+  }
+
+  if (write_msg(snrf, msg))
+  {
+    SNRF_PERROR();
+    return -1;
+  }
+
+  err = wait_msg(snrf, SNRF_OP_COMPL, msg, 1000);
+  if (err == -1)
+  {
+    SNRF_PERROR();
+    return -1;
+  }
+  else if (err == -2)
+  {
+    if (snrf_sync(snrf))
+    {
+      SNRF_PERROR();
+      return -1;
+    }
+    memcpy(msg, &saved_msg, sizeof(snrf_msg_t));
+    goto redo_msg;
+  }
+
+  return 0;
 }
 
 int snrf_write_payload(snrf_handle_t* snrf, const uint8_t* buf, size_t size)
@@ -151,13 +261,13 @@ int snrf_write_payload(snrf_handle_t* snrf, const uint8_t* buf, size_t size)
   msg.u.payload.size = (uint8_t)size;
   msg.sync = 0x00;
 
-  if (write_msg(snrf, &msg))
+  if (write_wait_msg(snrf, &msg))
   {
     SNRF_PERROR();
     return -1;
   }
 
-  if (wait_msg(snrf, SNRF_OP_COMPL, &msg))
+  if (msg.u.compl.err != SNRF_ERR_SUCCESS)
   {
     SNRF_PERROR();
     return -1;
@@ -195,7 +305,7 @@ int snrf_read_payload(snrf_handle_t* snrf, uint8_t* buf, size_t* size)
   }
   else
   {
-    const int err = wait_msg_n(snrf, SNRF_OP_PAYLOAD, &msg, 1);
+    const int err = wait_msg(snrf, SNRF_OP_PAYLOAD, &msg, (unsigned int)-1);
     if (err == -1)
     {
       SNRF_PERROR();
@@ -231,13 +341,7 @@ int snrf_set_keyval(snrf_handle_t* snrf, uint8_t key, uint32_t val)
   msg.u.set.val = uint32_to_le(val);
   msg.sync = 0x00;
 
-  if (write_msg(snrf, &msg))
-  {
-    SNRF_PERROR();
-    return -1;
-  }
-
-  if (wait_msg(snrf, SNRF_OP_COMPL, &msg))
+  if (write_wait_msg(snrf, &msg))
   {
     SNRF_PERROR();
     return -1;
@@ -260,13 +364,7 @@ int snrf_get_keyval(snrf_handle_t* snrf, uint8_t key, uint32_t* val)
   msg.u.set.key = key;
   msg.sync = 0x00;
 
-  if (write_msg(snrf, &msg))
-  {
-    SNRF_PERROR();
-    return -1;
-  }
-
-  if (wait_msg(snrf, SNRF_OP_COMPL, &msg))
+  if (write_wait_msg(snrf, &msg))
   {
     SNRF_PERROR();
     return -1;
