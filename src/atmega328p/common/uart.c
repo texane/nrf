@@ -33,7 +33,7 @@ static void uart_setup(void)
   UCSR0C = (3 << 1);
 }
 
-static void uart_write(uint8_t* s, uint8_t n)
+static void uart_write(const uint8_t* s, uint8_t n)
 {
   for (; n; --n, ++s)
   {

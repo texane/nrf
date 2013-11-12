@@ -333,12 +333,25 @@ static void set_led(uint8_t mask)
 
 #endif /* unused */
 
+static inline void write_payload_msg(const uint8_t* data, uint8_t size)
+{
+  /* write a payload message */
+  /* warning: rely on snrf_msg_t field ordering and packing */
+  /* use multiple uart_write to avoid memory copies */
+
+  static const uint8_t op = SNRF_OP_PAYLOAD;
+  static const uint8_t sync = 0x00;
+
+  uart_write(&op, sizeof(uint8_t));
+  uart_write(data, size);
+  uart_write(&size, sizeof(uint8_t));
+  uart_write(&sync, sizeof(uint8_t));
+}
+
 static uint8_t do_nrf(void)
 {
   /* return 0 if no msg processed, 1 otherwise */
 
-  static snrf_msg_t msg;
-  uint8_t i;
   uint8_t size;
 
   if (nrf24l01p_is_rx_irq() == 0) return 0;
@@ -350,12 +363,7 @@ static uint8_t do_nrf(void)
   if (nrf24l01p_cmd_len > SNRF_MAX_PAYLOAD_WIDTH)
     size = SNRF_MAX_PAYLOAD_WIDTH;
 
-  msg.op = SNRF_OP_PAYLOAD;
-  msg.u.payload.size = size;
-  for (i = 0; i < size; ++i)
-    msg.u.payload.data[i] = nrf24l01p_cmd_buf[i];
-
-  uart_write((uint8_t*)&msg, sizeof(msg));
+  write_payload_msg(nrf24l01p_cmd_buf, size);
 
   /* on message handled */
   return 1;
