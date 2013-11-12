@@ -8,12 +8,126 @@
 #include "../../../common/uart.c"
 
 
-/* snrf global variables */
+#if 0 /* unused */
+
+static void set_led(uint8_t mask)
+{
+#define LED_RX_POS 6
+#define LED_MATCH_POS 7
+#define LED_RX_MASK (1 << LED_RX_POS)
+#define LED_MATCH_MASK (1 << LED_MATCH_POS)
+
+  static uint8_t pre_mask = 0;
+
+  DDRD |= (LED_RX_MASK | LED_MATCH_MASK);
+
+  if (mask == pre_mask) return ;
+
+  PORTD &= ~(LED_RX_MASK | LED_MATCH_MASK);
+  PORTD |= mask;
+
+  pre_mask = mask;
+}
+
+#endif /* unused */
+
+ISR(PCINT0_vect)
+{
+  /* pin change 0 interrupt handler */
+  /* do nothing, processed by sequential in do_nrf */
+}
+
+static inline void write_payload_msg(const uint8_t* data, uint8_t size)
+{
+  /* write a payload message */
+  /* warning: rely on snrf_msg_t field ordering and packing */
+  /* use multiple uart_write to avoid memory copies */
+
+  static const uint8_t op = SNRF_OP_PAYLOAD;
+  static const uint8_t sync = 0x00;
+
+  uart_write(&op, sizeof(uint8_t));
+  uart_write(data, size);
+  uart_write(&size, sizeof(uint8_t));
+  uart_write(&sync, sizeof(uint8_t));
+}
+
+static uint8_t do_nrf(void)
+{
+  /* return 0 if no msg processed, 1 otherwise */
+
+  uint8_t size;
+
+  if (nrf24l01p_is_rx_irq() == 0) return 0;
+
+  nrf24l01p_read_rx();
+
+  size = nrf24l01p_cmd_len;
+  /* TODO: use an error message */
+  if (nrf24l01p_cmd_len > SNRF_MAX_PAYLOAD_WIDTH)
+    size = SNRF_MAX_PAYLOAD_WIDTH;
+
+  write_payload_msg(nrf24l01p_cmd_buf, size);
+
+  /* on message handled */
+  return 1;
+}
+
+/* uart interrupt handler */
+
+static void uart_enable_rx_int(void)
+{
+  UCSR0B |= 1 << RXCIE0;
+}
+
+static inline uint8_t uart_is_rx_empty(void)
+{
+  return (UCSR0A & (1 << 7)) == 0;
+}
+
+static volatile uint8_t uart_buf[sizeof(snrf_msg_t)];
+static volatile uint8_t uart_pos = 0;
+
+#define UART_FLAG_MISS (1 << 0)
+#define UART_FLAG_ERR (1 << 1)
+static volatile uint8_t uart_flags = 0;
+
+ISR(USART_RX_vect)
+{
+  /* warning: uart_pos must only be incremented. this allows */
+  /* the sequential part of the code to access its contents */
+  /* without disabling uart interrupts. especially, uart_pos */
+  /* must not be set to 0 here on error, and doing so is left */
+  /* to the sequential */
+  
+  while (uart_is_rx_empty() == 0)
+  {
+    /* missed byte */
+    if (uart_pos == sizeof(snrf_msg_t))
+    {
+      uint8_t x;
+      uart_read_uint8(&x);
+      uart_flags |= UART_FLAG_MISS;
+      return ;
+    }
+
+    /* uart rx error */
+    if (uart_read_uint8((uint8_t*)&uart_buf[uart_pos]))
+    {
+      uart_flags |= UART_FLAG_ERR;
+      return ;
+    }
+
+    ++uart_pos;
+  }
+}
+
+
+/* snrf global state */
 
 static uint8_t snrf_state;
 
-
-/* message handlers */
+/* uart message handlers */
 
 #define MAKE_COMPL_ERROR(__m, __e)		\
 do {						\
@@ -163,6 +277,10 @@ static void handle_set_msg(snrf_msg_t* msg)
     else nrf24l01p_set_payload_width((uint8_t)val);
     break ;
 
+  case SNRF_KEY_UART_FLAGS:
+    uart_flags = (uint8_t)val;
+    break ;
+
   default:
     MAKE_COMPL_ERROR(msg, SNRF_ERR_KEY);
     break ;
@@ -258,6 +376,12 @@ static void handle_get_msg(snrf_msg_t* msg)
       break ;
     }
 
+  case SNRF_KEY_UART_FLAGS:
+    {
+      msg->u.compl.val = uint32_to_le((uint32_t)uart_flags);
+      break ;
+    }
+
   default:
     MAKE_COMPL_ERROR(msg, SNRF_ERR_KEY);
     break ;
@@ -310,120 +434,6 @@ static void handle_msg(snrf_msg_t* msg)
   }
 }
 
-#if 0 /* unused */
-
-static void set_led(uint8_t mask)
-{
-#define LED_RX_POS 6
-#define LED_MATCH_POS 7
-#define LED_RX_MASK (1 << LED_RX_POS)
-#define LED_MATCH_MASK (1 << LED_MATCH_POS)
-
-  static uint8_t pre_mask = 0;
-
-  DDRD |= (LED_RX_MASK | LED_MATCH_MASK);
-
-  if (mask == pre_mask) return ;
-
-  PORTD &= ~(LED_RX_MASK | LED_MATCH_MASK);
-  PORTD |= mask;
-
-  pre_mask = mask;
-}
-
-#endif /* unused */
-
-ISR(PCINT0_vect)
-{
-  /* pin change 0 interrupt handler */
-  /* do nothing, processed by sequential in do_nrf */
-}
-
-static inline void write_payload_msg(const uint8_t* data, uint8_t size)
-{
-  /* write a payload message */
-  /* warning: rely on snrf_msg_t field ordering and packing */
-  /* use multiple uart_write to avoid memory copies */
-
-  static const uint8_t op = SNRF_OP_PAYLOAD;
-  static const uint8_t sync = 0x00;
-
-  uart_write(&op, sizeof(uint8_t));
-  uart_write(data, size);
-  uart_write(&size, sizeof(uint8_t));
-  uart_write(&sync, sizeof(uint8_t));
-}
-
-static uint8_t do_nrf(void)
-{
-  /* return 0 if no msg processed, 1 otherwise */
-
-  uint8_t size;
-
-  if (nrf24l01p_is_rx_irq() == 0) return 0;
-
-  nrf24l01p_read_rx();
-
-  size = nrf24l01p_cmd_len;
-  /* TODO: use an error message */
-  if (nrf24l01p_cmd_len > SNRF_MAX_PAYLOAD_WIDTH)
-    size = SNRF_MAX_PAYLOAD_WIDTH;
-
-  write_payload_msg(nrf24l01p_cmd_buf, size);
-
-  /* on message handled */
-  return 1;
-}
-
-/* uart interrupt handler */
-
-static void uart_enable_rx_int(void)
-{
-  UCSR0B |= 1 << RXCIE0;
-}
-
-static inline uint8_t uart_is_rx_empty(void)
-{
-  return (UCSR0A & (1 << 7)) == 0;
-}
-
-static volatile uint8_t uart_buf[sizeof(snrf_msg_t)];
-static volatile uint8_t uart_pos = 0;
-
-#define UART_FLAG_MISS (1 << 0)
-#define UART_FLAG_ERR (1 << 1)
-static volatile uint8_t uart_flags = 0;
-
-ISR(USART_RX_vect)
-{
-  /* warning: uart_pos must only be incremented. this allows */
-  /* the sequential part of the code to access its contents */
-  /* without disabling uart interrupts. especially, uart_pos */
-  /* must not be set to 0 here on error, and doing so is left */
-  /* to the sequential */
-  
-  while (uart_is_rx_empty() == 0)
-  {
-    /* missed byte */
-    if (uart_pos == sizeof(snrf_msg_t))
-    {
-      uint8_t x;
-      uart_read_uint8(&x);
-      uart_flags |= UART_FLAG_MISS;
-      return ;
-    }
-
-    /* uart rx error */
-    if (uart_read_uint8((uint8_t*)&uart_buf[uart_pos]))
-    {
-      uart_flags |= UART_FLAG_ERR;
-      return ;
-    }
-
-    ++uart_pos;
-  }
-}
-
 static uint8_t do_uart(void)
 {
   /* return 0 if no msg processed, 1 otherwise */
@@ -438,24 +448,7 @@ static uint8_t do_uart(void)
   /* no need to disable interrupts. cf USART_RX_vect comment. */
   const uint8_t pos = uart_pos;
 
-  /* no need for atomic access. */
-  const uint8_t flags = uart_flags;
-
   uint8_t x;
-
-  if (flags & UART_FLAG_ERR)
-  {
-    /* TODO: send error to host. */
-    uart_flags &= ~UART_FLAG_ERR;
-    uart_pos = 0;
-    return 0;
-  }
-  else if (flags & UART_FLAG_MISS)
-  {
-    /* TODO: send error to host */
-    /* not an error, continue */
-    uart_flags &= ~UART_FLAG_MISS;
-  }
 
   if (pos != sizeof(snrf_msg_t))
   {

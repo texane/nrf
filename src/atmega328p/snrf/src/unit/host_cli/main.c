@@ -58,6 +58,7 @@ static uint8_t str_to_key(const char* s)
   IF_STREQ_RETURN(s, "tx_addr", TX_ADDR);
   IF_STREQ_RETURN(s, "tx_ack", TX_ACK);
   IF_STREQ_RETURN(s, "payload_width", PAYLOAD_WIDTH);
+  IF_STREQ_RETURN(s, "uart_flags", UART_FLAGS);
 
   return (uint8_t)-1;
 }
@@ -117,6 +118,7 @@ static int str_to_keyval
   case SNRF_KEY_RX_ADDR:
   case SNRF_KEY_TX_ADDR:
   case SNRF_KEY_PAYLOAD_WIDTH:
+  case SNRF_KEY_UART_FLAGS:
     *val = get_uint32(val_str);
     break ;
 
@@ -202,6 +204,12 @@ static void print_keyval(uint8_t key, uint32_t val)
   case SNRF_KEY_PAYLOAD_WIDTH:
     key_str = "payload_width";
     sprintf(val_buf, "%u", val);
+    val_str = val_buf;
+    break ;
+
+  case SNRF_KEY_UART_FLAGS:
+    key_str = "uart_flags";
+    sprintf(val_buf, "0x%02x", val);
     val_str = val_buf;
     break ;
 
