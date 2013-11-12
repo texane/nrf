@@ -369,6 +369,12 @@ int serial_writen(serial_handle_t* h, const void* buf, size_t size)
     }
     else if (n)
     {
+      if (tcdrain(h->fd))
+      {
+	DEBUG_ERROR();
+	return -1;
+      }
+
       size -= n;
       buf = (unsigned char*)buf + n;
     }
@@ -389,6 +395,12 @@ int serial_write
   if (n == -1)
   {
     DEBUG_ERROR("write() == %u\n", errno);
+    return -1;
+  }
+
+  if (tcdrain(h->fd))
+  {
+    DEBUG_ERROR();
     return -1;
   }
 
