@@ -381,74 +381,118 @@ static inline uint8_t uart_is_rx_empty(void)
   return (UCSR0A & (1 << 7)) == 0;
 }
 
+static volatile uint8_t uart_buf[sizeof(snrf_msg_t)];
+static volatile uint8_t uart_pos = 0;
+
+#define UART_FLAG_MISS (1 << 0)
+#define UART_FLAG_ERR (1 << 1)
+static volatile uint8_t uart_flags = 0;
+
+ISR(USART_RX_vect)
+{
+  /* warning: uart_pos must only be incremented. this allows */
+  /* the sequential part of the code to access its contents */
+  /* without disabling uart interrupts. especially, uart_pos */
+  /* must not be set to 0 here on error, and doing so is left */
+  /* to the sequential */
+  
+  while (uart_is_rx_empty() == 0)
+  {
+    /* missed byte */
+    if (uart_pos == sizeof(snrf_msg_t))
+    {
+      uint8_t x;
+      uart_read_uint8(&x);
+      uart_flags |= UART_FLAG_MISS;
+      return ;
+    }
+
+    /* uart rx error */
+    if (uart_read_uint8((uint8_t*)&uart_buf[uart_pos]))
+    {
+      uart_flags |= UART_FLAG_ERR;
+      return ;
+    }
+
+    ++uart_pos;
+  }
+}
+
 static uint8_t do_uart(void)
 {
   /* return 0 if no msg processed, 1 otherwise */
 
-  static uint8_t uart_buf[sizeof(snrf_msg_t)];
-  static uint8_t uart_pos = 0;
+  /* note: commands comming from the host always */
+  /* require a form of ack, which implies that */
+  /* there wont be a uart rx burst from the dev */
+  /* point of view. thus, this routine can be */
+  /* slow to handle message without missing */
+  /* bytes, until the reply is sent. */
+
+  /* no need to disable interrupts. cf USART_RX_vect comment. */
+  const uint8_t pos = uart_pos;
+
+  /* no need for atomic access. */
+  const uint8_t flags = uart_flags;
 
   uint8_t x;
 
-  while (uart_is_rx_empty() == 0)
+  if (flags & UART_FLAG_ERR)
   {
-    if (uart_read_uint8(&uart_buf[uart_pos++]))
+    /* TODO: send error to host. */
+    uart_flags &= ~UART_FLAG_ERR;
+    uart_pos = 0;
+    return 0;
+  }
+  else if (flags & UART_FLAG_MISS)
+  {
+    /* TODO: send error to host */
+    /* not an error, continue */
+    uart_flags &= ~UART_FLAG_MISS;
+  }
+
+  if (pos != sizeof(snrf_msg_t))
+  {
+    /* not a full message available */
+    return 0;
+  }
+
+  /* synchronization procedure */
+  if (uart_buf[offsetof(snrf_msg_t, sync)] == SNRF_SYNC_BYTE)
+  {
+    while (1)
     {
-      /* abort on error */
-      uart_flush_rx();
-      uart_pos = 0;
-      continue ;
+      /* do not stop on error during sync */
+      if (uart_read_uint8(&x)) continue ;
+      if (x == SNRF_SYNC_END) break ;
     }
 
-    if (uart_pos != sizeof(uart_buf))
-    {
-      continue ;
-    }
-
-    /* synchronization */
-    if (uart_buf[offsetof(snrf_msg_t, sync)] == SNRF_SYNC_BYTE)
-    {
-      while (1)
-      {
-	/* do not stop on error during sync */
-	if (uart_read_uint8(&x)) continue ;
-	if (x == SNRF_SYNC_END) break ;
-      }
-
-      uart_pos = 0;
-
-      /* set state to conf */
-      if (snrf_state != SNRF_STATE_CONF)
-      {
-	snrf_state = SNRF_STATE_CONF;
-	nrf24l01p_set_powerdown();
-      }
-
-      /* redo rx */
-      continue ;
-    }
-
-    /* handle new message */
-    handle_msg((snrf_msg_t*)uart_buf);
-
-    /* send completion */
-    uart_write(uart_buf, sizeof(uart_buf));
-
-    /* pos is modulo buf size */
     uart_pos = 0;
 
-    /* a message has been handled */
+    /* set state to conf */
+    if (snrf_state != SNRF_STATE_CONF)
+    {
+      snrf_state = SNRF_STATE_CONF;
+      nrf24l01p_set_powerdown();
+    }
+
     return 1;
   }
 
-  /* no message handled */
-  return 0;
-}
+  /* handle new message */
+  handle_msg((snrf_msg_t*)uart_buf);
 
-ISR(USART_RX_vect)
-{
-  /* do not handle here, otherwise compl */
-  /* msg may get mixed with nrf payload */
+  /* warning: set uart_pos to 0 before sending */
+  /* the reply, since the host will start sending */
+  /* new packets and we do not want the interrupt */
+  /* handler to see uart_buf full */
+  uart_pos = 0;
+
+  /* send completion */
+  uart_write((uint8_t*)uart_buf, sizeof(uart_buf));
+
+  /* a message has been handled */
+  return 1;
 }
 
 /* main */
