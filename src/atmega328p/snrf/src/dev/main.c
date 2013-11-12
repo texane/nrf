@@ -333,6 +333,12 @@ static void set_led(uint8_t mask)
 
 #endif /* unused */
 
+ISR(PCINT0_vect)
+{
+  /* pin change 0 interrupt handler */
+  /* do nothing, processed by sequential in do_nrf */
+}
+
 static inline void write_payload_msg(const uint8_t* data, uint8_t size)
 {
   /* write a payload message */
@@ -368,14 +374,6 @@ static uint8_t do_nrf(void)
   /* on message handled */
   return 1;
 }
-
-ISR(PCINT0_vect)
-{
-  /* pin change 0 interrupt handler */
-  /* do not handle here, otherwise compl */
-  /* msg may get mixed with nrf payload */
-}
-
 
 /* uart interrupt handler */
 
@@ -569,7 +567,12 @@ int main(void)
   while (1)
   {
     sleep_disable();
-    cli();
+
+    /* note: keep uart interrupt enabled */
+
+    /* disable pcint interrupt since we are already awake */
+    /* and entering the handler perturbates the execution */
+    PCMSK0 &= ~(1 << 1);
 
     /* alternate do_{uart,nrf} to avoid starvation */
     while (1)
@@ -579,11 +582,31 @@ int main(void)
       if (is_msg == 0) break ;
     }
 
+    /* reenable pcint interrupts */
+    PCMSK0 |= 1 << 1;
+
+    /* the following procedure is used to not miss interrupts */
+    /* disable interrupts, check if something available */
+    /* otherwise, enable interrupt and sleep (sei, sleep) */
+    /* the later ensures now interrupt is missed */
+
     sleep_enable();
     sleep_bod_disable();
-    /* atomic, no int schedule between sei and sleep_cpu */
-    sei();
-    sleep_cpu();
+
+    cli();
+
+    if ((uart_pos == sizeof(snrf_msg_t)) || nrf24l01p_is_rx_irq_noread())
+    {
+      /* continue, do not sleep */
+      sei();
+    }
+    else
+    {
+      /* warning: keep the 2 instructions in the same block */
+      /* atomic, no int schedule between sei and sleep_cpu */
+      sei();
+      sleep_cpu();
+    }
   }
 
   return 0;

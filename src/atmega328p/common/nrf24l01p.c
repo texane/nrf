@@ -497,6 +497,14 @@ static inline unsigned int nrf24l01p_is_tx_irq(void)
   return nrf24l01p_read_irqs() & NRF24L01P_IRQ_MASK_TX_DS;
 }
 
+static inline uint8_t nrf24l01p_is_rx_irq_noread(void)
+{
+  /* return 1 if an irq is pending, 0 otherwise */
+  /* the irq is not acknowledged as it is in is_rx_irq */
+  if ((NRF24L01P_IO_IRQ_PIN & NRF24L01P_IO_IRQ_MASK) == 0) return 1;
+  return 0;
+}
+
 static inline void nrf24l01p_clear_irqs(void)
 {
   /* reset irq by writing back 1s to the source bits */
