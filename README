@@ -1,0 +1,9 @@
+NORDIC radio frequency core repository, plus unit testing
+programs. For now, only nr24l01p supported (maybe nrf2401a).
+
+bw: bandwidth related tests
+common: source common to all projects (nrfxxx.c, spi, uart)
+nrf2401a: support for nrf2401a, do not know if it works
+range: used to test the emission / reception range
+simple: do not remember, but must be something simple
+snrf: serial to nrf
