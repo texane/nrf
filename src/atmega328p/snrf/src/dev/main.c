@@ -82,7 +82,7 @@ static void uart_enable_rx_int(void)
 
 static inline uint8_t uart_is_rx_empty(void)
 {
-  return (UCSR0A & (1 << 7)) == 0;
+  return (UCSR0A & (1 << RXC0)) == 0;
 }
 
 static volatile uint8_t uart_buf[sizeof(snrf_msg_t)];
@@ -99,26 +99,29 @@ ISR(USART_RX_vect)
   /* without disabling uart interrupts. especially, uart_pos */
   /* must not be set to 0 here on error, and doing so is left */
   /* to the sequential */
-  
+
+  uint8_t err;
+  uint8_t x;
+
   while (uart_is_rx_empty() == 0)
   {
+    err = uart_read_uint8(&x);
+
     /* missed byte */
     if (uart_pos == sizeof(snrf_msg_t))
     {
-      uint8_t x;
-      uart_read_uint8(&x);
       uart_flags |= UART_FLAG_MISS;
       return ;
     }
 
     /* uart rx error */
-    if (uart_read_uint8((uint8_t*)&uart_buf[uart_pos]))
+    if (err)
     {
       uart_flags |= UART_FLAG_ERR;
       return ;
     }
 
-    ++uart_pos;
+    uart_buf[uart_pos++] = x;
   }
 }
 
@@ -459,14 +462,17 @@ static uint8_t do_uart(void)
   /* synchronization procedure */
   if (uart_buf[offsetof(snrf_msg_t, sync)] == SNRF_SYNC_BYTE)
   {
+    /* disable interrupts before setting uart_pos */
+    /* with interrupts disabled, wait for SYNC_END */
+    cli();
+    uart_pos = 0;
     while (1)
     {
       /* do not stop on error during sync */
       if (uart_read_uint8(&x)) continue ;
       if (x == SNRF_SYNC_END) break ;
     }
-
-    uart_pos = 0;
+    sei();
 
     /* set state to conf */
     if (snrf_state != SNRF_STATE_CONF)
@@ -488,7 +494,7 @@ static uint8_t do_uart(void)
   uart_pos = 0;
 
   /* send completion */
-  uart_write((uint8_t*)uart_buf, sizeof(uart_buf));
+  uart_write((uint8_t*)uart_buf, sizeof(snrf_msg_t));
 
   /* a message has been handled */
   return 1;
@@ -556,6 +562,9 @@ int main(void)
 
   /* uart and pinchange int wakeup sources */
   set_sleep_mode(SLEEP_MODE_IDLE);
+
+  /* enable interrupts before looping */
+  sei();
 
   while (1)
   {
