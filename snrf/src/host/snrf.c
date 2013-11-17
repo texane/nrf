@@ -42,6 +42,12 @@ int snrf_open(snrf_handle_t* snrf)
     goto on_error_1;
   }
 
+  /* initialize before using messages */
+  snrf->msg_head = NULL;
+  snrf->msg_tail = NULL;
+
+  snrf->msg_rpos = 0;
+
 #if 0 /* sync later only if needed */
   if (snrf_sync(snrf))
   {
@@ -55,11 +61,6 @@ int snrf_open(snrf_handle_t* snrf)
     SNRF_PERROR();
     goto on_error_1;
   }
-
-  snrf->msg_head = NULL;
-  snrf->msg_tail = NULL;
-
-  snrf->msg_rpos = 0;
 
   return 0;
 
@@ -206,6 +207,12 @@ static int wait_msg
 
     /* put in msg queue, append at tail */
     node = malloc(sizeof(snrf_msg_node_t));
+    if (node == NULL)
+    {
+      SNRF_PERROR();
+      return -1;
+    }
+
     memcpy(&node->msg, msg, sizeof(snrf_msg_t));
     node->next = NULL;
     if (snrf->msg_head == NULL) snrf->msg_head = node;
