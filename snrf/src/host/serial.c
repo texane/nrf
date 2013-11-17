@@ -248,6 +248,7 @@ int serial_set_conf(serial_handle_t* h, const serial_conf_t* c)
 
 #if 1
   memset(&termios, 0, sizeof(struct termios));
+  cfmakeraw(&termios);
   if (!(termios.c_cflag = conf_to_speed_t(c)))
     {
       DEBUG_ERROR("conf_to_speed_t()\n");

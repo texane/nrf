@@ -42,12 +42,13 @@ int snrf_open(snrf_handle_t* snrf)
     goto on_error_1;
   }
 
-  /* synchronize data streams */
+#if 0 /* sync later only if needed */
   if (snrf_sync(snrf))
   {
     SNRF_PERROR();
     goto on_error_1;
   }
+#endif
 
   if (snrf_get_keyval(snrf, SNRF_KEY_STATE, &snrf->state))
   {
@@ -413,7 +414,7 @@ int snrf_sync(snrf_handle_t* snrf)
 
   for (i = 0; i < (4 * sizeof(snrf_msg_t)); ++i)
   {
-    usleep(1000);
+    usleep(100);
     if (serial_writen(&snrf->serial, &sync_byte, 1))
     {
       SNRF_PERROR();
@@ -421,7 +422,8 @@ int snrf_sync(snrf_handle_t* snrf)
     }
   }
 
-  usleep(100000);
+  /* delay required beftore flushing and writing end byte */
+  usleep(10000);
 
   if (serial_flush_txrx(&snrf->serial))
   {

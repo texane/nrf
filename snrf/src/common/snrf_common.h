@@ -45,8 +45,8 @@
 #define SNRF_ERR_VAL 4 
 #define SNRF_ERR_STATE 5
 
-#define SNRF_SYNC_BYTE 0xff
-#define SNRF_SYNC_END 0x2a
+#define SNRF_SYNC_BYTE 0xa5
+#define SNRF_SYNC_END 0x5a
 
 typedef struct
 {

@@ -117,7 +117,10 @@ ISR(USART_RX_vect)
     /* uart rx error */
     if (err)
     {
+      /* force synchronization */
       uart_flags |= UART_FLAG_ERR;
+      uart_pos = sizeof(snrf_msg_t);
+      uart_buf[offsetof(snrf_msg_t, sync)] = SNRF_SYNC_BYTE;
       return ;
     }
 
