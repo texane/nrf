@@ -2,8 +2,8 @@
 #include <avr/io.h>
 #include <avr/sleep.h>
 #include <avr/interrupt.h>
-#include "../../../../common/spi.c"
-#include "../../../../common/nrf24l01p.c"
+#include "../../../../src/spi.c"
+#include "../../../../src/nrf24l01p.c"
 
 /* timer */
 

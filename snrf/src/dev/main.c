@@ -4,8 +4,8 @@
 #include <avr/sleep.h>
 #include <avr/interrupt.h>
 #include "../common/snrf_common.h"
-#include "../../../common/nrf24l01p.c"
-#include "../../../common/uart.c"
+#include "../../../src/nrf24l01p.c"
+#include "../../../src/uart.c"
 
 
 #if 0 /* unused */
