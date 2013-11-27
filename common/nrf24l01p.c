@@ -31,7 +31,11 @@ static void wait_50us(void)
 
   register uint8_t i;
 
+#if defined(CLK_PRESCAL)
+  for (i = 0; i != (80 / CLK_PRESCAL); ++i)
+#else
   for (i = 0; i != 80; ++i)
+#endif
   {
 #if 0 /* useless since 3 more insn due to loop */
     __asm__ __volatile__ ("nop\n\t");
