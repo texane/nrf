@@ -1,9 +1,9 @@
 #include <stdint.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
-#include "../../common/spi.c"
-#include "../../common/nrf24l01p.c"
-#include "../../common/uart.c"
+#include "../../../src/spi.c"
+#include "../../../src/nrf24l01p.c"
+#include "../../../src/uart.c"
 
 
 /* timer1a compare on match handler */
@@ -22,6 +22,7 @@ ISR(TIMER1_COMPA_vect)
 int main(void)
 {
   uint16_t counter;
+  uint8_t x;
 
 #define CONFIG_CHECK 0
 #if CONFIG_CHECK
@@ -92,7 +93,7 @@ int main(void)
   is_timer1_irq = 0;
 
   uart_write((uint8_t*)"press space\r\n", 13);
-  uart_read_uint8();
+  uart_read_uint8(&x);
   uart_write((uint8_t*)"starting\r\n", 10);
 
   nrf24l01p_standby_to_rx();

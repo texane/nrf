@@ -1,10 +1,10 @@
-/* simple test for nrf24l01p library */
+/* Simple test for nrf24l01p library */
 
 
 #include <stdint.h>
 #include <avr/io.h>
-#include "../common/nrf24l01p.c"
-#include "../common/uart.c"
+#include "../../src/nrf24l01p.c"
+#include "../../src/uart.c"
 
 
 int main(void)

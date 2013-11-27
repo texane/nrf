@@ -2,12 +2,12 @@
 #include <avr/io.h>
 #include <avr/sleep.h>
 #include <avr/interrupt.h>
-#include "../../common/nrf24l01p.c"
+#include "../../../src/nrf24l01p.c"
 
 
 #define CONFIG_USE_UART 0
 #if (CONFIG_USE_UART == 1)
-#include "../../common/uart.c"
+#include "../../../src/uart.c"
 #endif
 
 #define CONFIG_USE_PCINT 1
@@ -87,6 +87,9 @@ ISR(PCINT0_vect)
 int main(void)
 {
   uint32_t counter[2] = {0, 0};
+#if (CONFIG_USE_UART == 1)
+  uint8_t x;
+#endif
 
   /* setup spi first */
   spi_setup_master();
@@ -148,7 +151,7 @@ int main(void)
 #if (CONFIG_USE_UART == 1)
   uart_write((uint8_t*)"rx side\r\n", 9);
   uart_write((uint8_t*)"press space\r\n", 13);
-  uart_read_uint8();
+  uart_read_uint8(&x);
   uart_write((uint8_t*)"starting\r\n", 10);
 #endif
 

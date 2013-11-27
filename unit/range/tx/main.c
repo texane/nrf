@@ -1,9 +1,9 @@
 #include <stdint.h>
 #include <avr/io.h>
 #include <avr/interrupt.h>
-#include "../../common/spi.c"
-#include "../../common/nrf24l01p.c"
-#include "../../common/uart.c"
+#include "../../../src/spi.c"
+#include "../../../src/nrf24l01p.c"
+#include "../../../src/uart.c"
 
 static void make_pattern(uint8_t* buf)
 {
@@ -18,6 +18,9 @@ int main(void)
 {
   uint8_t buf[NRF24L01P_PAYLOAD_WIDTH];
   uint32_t counter = 0;
+#if 0
+  uint8_t x;
+#endif
 
   /* setup spi first */
   spi_setup_master();
@@ -67,7 +70,7 @@ int main(void)
 #if 0
   uart_write((uint8_t*)"tx side\r\n", 9);
   uart_write((uint8_t*)"press space\r\n", 13);
-  uart_read_uint8();
+  uart_read_uint8(&x);
   uart_write((uint8_t*)"starting\r\n", 10);
 #endif
 
