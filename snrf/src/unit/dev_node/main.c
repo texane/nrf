@@ -150,7 +150,7 @@ int main(void)
   nrf24l01p_set_chan(2);
   /* 5 bytes addr width */
   /* nrf24l01p_set_addr_width(NRF24L01P_ADDR_WIDTH_5); */
-  nrf24l01p_set_addr_width(NRF24L01P_ADDR_WIDTH_3);
+  nrf24l01p_set_addr_width(NRF24L01P_ADDR_WIDTH_4);
   /* rx address */
   nrf24l01p_cmd_buf[0] = 0xe7;
   nrf24l01p_cmd_buf[1] = 0xe7;
