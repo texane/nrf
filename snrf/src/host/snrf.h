@@ -30,6 +30,7 @@ typedef struct snrf_handle
 
 } snrf_handle_t;
 
+int snrf_open_with_path(snrf_handle_t*, const char*);
 int snrf_open(snrf_handle_t*);
 int snrf_close(snrf_handle_t*);
 int snrf_sync(snrf_handle_t*);

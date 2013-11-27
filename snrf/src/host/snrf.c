@@ -26,11 +26,11 @@ if (!(__x)) printf("[!] %s, %u\n", __FILE__, __LINE__);	\
 #endif
 
 
-int snrf_open(snrf_handle_t* snrf)
+int snrf_open_with_path(snrf_handle_t* snrf, const char* path)
 {
   static const serial_conf_t conf = { 9600, 8, SERIAL_PARITY_DISABLED, 1 };
 
-  if (serial_open(&snrf->serial, "/dev/ttyUSB0"))
+  if (serial_open(&snrf->serial, path))
   {
     SNRF_PERROR();
     goto on_error_0;
@@ -68,6 +68,11 @@ int snrf_open(snrf_handle_t* snrf)
   snrf_close(snrf);
  on_error_0:
   return -1;
+}
+
+int snrf_open(snrf_handle_t* snrf)
+{
+  return snrf_open_with_path(snrf, "/dev/ttyUSB0");
 }
 
 int snrf_close(snrf_handle_t* snrf)
