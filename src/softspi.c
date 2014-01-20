@@ -1,3 +1,91 @@
+#if defined (CONFIG_LM4F120XL)
+
+#include <stdint.h>
+#include "inc/hw_memmap.h"
+#include "inc/hw_types.h"
+#include "driverlib/gpio.h"
+#include "driverlib/rom_map.h"
+#include "driverlib/sysctl.h"
+#include "driverlib/systick.h"
+
+static unsigned long softspi_sck_addr;
+static unsigned long softspi_miso_addr;
+static unsigned long softspi_mosi_addr;
+static unsigned long softspi_csn_addr;
+
+static inline void softspi_setup_master(void)
+{
+  SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOD);
+
+  softspi_sck_addr = GPIO_PORTD_BASE + (GPIO_PIN_0 << 2);
+  softspi_miso_addr = GPIO_PORTD_BASE + (GPIO_PIN_1 << 2);
+  softspi_mosi_addr = GPIO_PORTD_BASE + (GPIO_PIN_2 << 2);
+  softspi_csn_addr = GPIO_PORTD_BASE + (GPIO_PIN_3 << 2);
+
+  MAP_GPIOPinTypeGPIOOutput
+  (
+   softspi_sck_addr & 0xfffff000,
+   (softspi_sck_addr & 0x00000fff) >> 2
+  );
+
+  MAP_GPIOPinTypeGPIOInput
+  (
+   softspi_miso_addr & 0xfffff000,
+   (softspi_miso_addr & 0x00000fff) >> 2
+  );
+
+  MAP_GPIOPinTypeGPIOOutput
+  (
+   softspi_mosi_addr & 0xfffff000,
+   (softspi_mosi_addr & 0x00000fff) >> 2
+  );
+
+  MAP_GPIOPinTypeGPIOOutput
+  (
+   softspi_csn_addr & 0xfffff000,
+   (softspi_csn_addr & 0x00000fff) >> 2
+  );
+}
+
+static inline void softspi_clk_low(void)
+{
+  HWREG(softspi_sck_addr) = 0x00;
+}
+
+static inline void softspi_clk_high(void)
+{
+  HWREG(softspi_sck_addr) = 0xff;
+}
+
+static inline void softspi_mosi_low(void)
+{
+  HWREG(softspi_mosi_addr) = 0x00;
+}
+
+static inline void softspi_mosi_high(void)
+{
+  HWREG(softspi_mosi_addr) = 0xff;
+}
+
+static inline void softspi_cs_low(void)
+{
+  HWREG(softspi_csn_addr) = 0x00;
+}
+
+static inline void softspi_cs_high(void)
+{
+  HWREG(softspi_csn_addr) = 0xff;
+}
+
+#if (SOFTSPI_DONT_USE_MISO == 0)
+static inline uint8_t softspi_is_miso(void)
+{
+  return HWREG(softspi_miso_addr);
+}
+#endif
+
+#else /* ATMEGA328P */
+
 #include <stdint.h>
 #include <avr/io.h>
 
@@ -50,6 +138,15 @@ static inline void softspi_mosi_high(void)
   SOFTSPI_MOSI_PORT |= SOFTSPI_MOSI_MASK;
 }
 
+#if (SOFTSPI_DONT_USE_MISO == 0)
+static inline uint8_t softspi_is_miso(void)
+{
+  return SOFTSPI_MISO_PIN & SOFTSPI_MISO_MASK;
+}
+#endif
+
+#endif /* ATMEGA328P */
+
 static inline void softspi_write_bit(uint8_t x, uint8_t m)
 {
   /* dac7554 samples at clock falling edge */
@@ -94,7 +191,7 @@ static inline void softspi_read_bit(uint8_t* x, uint8_t i)
 #endif
   softspi_clk_low();
 
-  if (SOFTSPI_MISO_PIN & SOFTSPI_MISO_MASK) *x |= 1 << i;
+  if (softspi_is_miso()) *x |= 1 << i;
 }
 
 static uint8_t softspi_read_uint8(void)
