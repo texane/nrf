@@ -1,7 +1,12 @@
 #ifndef SPI_LM4F120XL_C_INCLUDED
 #define SPI_LM4F120XL_C_INCLUDED
 
+#include <stdint.h>
+
+#ifndef CONFIG_LM4F120XL
 #define CONFIG_LM4F120XL 1
+#endif
+
 #define SOFTSPI_DONT_USE_MISO 0
 
 #include "softspi.c"
@@ -19,6 +24,10 @@ static inline void spi_cs_low(void)
 static inline void spi_cs_high(void)
 {
   softspi_cs_high();
+}
+
+static inline void spi_set_sck_freq(uint8_t x)
+{
 }
 
 static inline void spi_write_uint8(uint8_t x)

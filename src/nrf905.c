@@ -1,8 +1,151 @@
 #include <stdint.h>
+
+/* platform specific */
+
+#if defined(CONFIG_LM4F120XL)
+
+#include "inc/hw_memmap.h"
+#include "inc/hw_types.h"
+#include "driverlib/gpio.h"
+#include "driverlib/rom_map.h"
+#include "driverlib/sysctl.h"
+#include "driverlib/systick.h"
+#include "spi_lm4f120xl.c"
+
+static unsigned long nrf905_txe_addr;
+static unsigned long nrf905_trx_addr;
+static unsigned long nrf905_pwr_addr;
+static unsigned long nrf905_cd_addr;
+static unsigned long nrf905_am_addr;
+static unsigned long nrf905_dr_addr;
+
+static void nrf905_setup_txe(void)
+{
+  SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
+
+  nrf905_txe_addr = GPIO_PORTB_BASE + (GPIO_PIN_4 << 2);
+
+  MAP_GPIOPinTypeGPIOOutput
+  (
+   nrf905_txe_addr & 0xfffff000,
+   (nrf905_txe_addr & 0x00000fff) >> 2
+  );
+}
+
+static void nrf905_set_txe(void)
+{
+  HWREG(nrf905_txe_addr) = 0xff;
+}
+
+static void nrf905_clear_txe(void)
+{
+  HWREG(nrf905_txe_addr) = 0x00;
+}
+
+static void nrf905_setup_trx(void)
+{
+  SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOE);
+
+  nrf905_trx_addr = GPIO_PORTE_BASE + (GPIO_PIN_4 << 2);
+
+  MAP_GPIOPinTypeGPIOOutput
+  (
+   nrf905_trx_addr & 0xfffff000,
+   (nrf905_trx_addr & 0x00000fff) >> 2
+  );
+}
+
+static void nrf905_set_trx(void)
+{
+  HWREG(nrf905_trx_addr) = 0xff;
+}
+
+static void nrf905_clear_trx(void)
+{
+  HWREG(nrf905_trx_addr) = 0x00;
+}
+
+static void nrf905_setup_pwr(void)
+{
+  SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOE);
+
+  nrf905_pwr_addr = GPIO_PORTE_BASE + (GPIO_PIN_5 << 2);
+
+  MAP_GPIOPinTypeGPIOOutput
+  (
+   nrf905_pwr_addr & 0xfffff000,
+   (nrf905_pwr_addr & 0x00000fff) >> 2
+  );
+}
+
+static void nrf905_set_pwr(void)
+{
+  HWREG(nrf905_pwr_addr) = 0xff;
+}
+
+static void nrf905_clear_pwr(void)
+{
+  HWREG(nrf905_pwr_addr) = 0x00;
+}
+
+static void nrf905_setup_cd(void)
+{
+  SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
+
+  nrf905_cd_addr = GPIO_PORTB_BASE + (GPIO_PIN_1 << 2);
+
+  MAP_GPIOPinTypeGPIOInput
+  (
+   nrf905_cd_addr & 0xfffff000,
+   (nrf905_cd_addr & 0x00000fff) >> 2
+  );
+}
+
+static uint8_t nrf905_is_cd(void)
+{
+  return HWREG(nrf905_cd_addr);
+}
+
+static void nrf905_setup_dr(void)
+{
+  SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
+
+  nrf905_dr_addr = GPIO_PORTB_BASE + (GPIO_PIN_0 << 2);
+
+  MAP_GPIOPinTypeGPIOInput
+  (
+   nrf905_dr_addr & 0xfffff000,
+   (nrf905_dr_addr & 0x00000fff) >> 2
+  );
+}
+
+static uint8_t nrf905_is_dr(void)
+{
+  return HWREG(nrf905_dr_addr);
+}
+
+static void nrf905_setup_am(void)
+{
+  SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOB);
+
+  nrf905_am_addr = GPIO_PORTB_BASE + (GPIO_PIN_5 << 2);
+
+  MAP_GPIOPinTypeGPIOInput
+  (
+   nrf905_am_addr & 0xfffff000,
+   (nrf905_am_addr & 0x00000fff) >> 2
+  );
+}
+
+static uint8_t nrf905_is_am(void)
+{
+  return HWREG(nrf905_am_addr);
+}
+
+#else /* ATMEGA328P */
+
 #include <avr/io.h>
 #include "spi.c"
-
-/* pinout */
 
 /* hardcoded in spi.c */
 #define NRF905_IO_CSN_MASK (1 << 2)
@@ -39,6 +182,102 @@
 #define NRF905_IO_AM_DDR DDRD
 #define NRF905_IO_AM_PIN PIND
 
+static inline void spi_setup_cs(void)
+{
+  /* spi cs, pb2 */
+  NRF905_IO_CSN_DDR |= NRF905_IO_CSN_MASK;
+}
+
+static inline void spi_cs_low(void)
+{
+  NRF905_IO_CSN_PORT &= ~NRF905_IO_CSN_MASK;
+}
+
+static inline void spi_cs_high(void)
+{
+  NRF905_IO_CSN_PORT |= NRF905_IO_CSN_MASK;
+}
+
+static void nrf905_setup_txe(void)
+{
+  NRF905_IO_TXE_DDR |= NRF905_IO_TXE_MASK;
+}
+
+static void nrf905_set_txe(void)
+{
+  NRF905_IO_TXE_PORT |= NRF905_IO_TXE_MASK;
+}
+
+static void nrf905_clear_txe(void)
+{
+  NRF905_IO_TXE_PORT &= ~NRF905_IO_TXE_MASK;
+}
+
+static void nrf905_setup_trx(void)
+{
+  NRF905_IO_TRX_DDR |= NRF905_IO_TRX_MASK;
+}
+
+static void nrf905_set_trx(void)
+{
+  NRF905_IO_TRX_PORT |= NRF905_IO_TRX_MASK;
+}
+
+static void nrf905_clear_trx(void)
+{
+  NRF905_IO_TRX_PORT &= ~NRF905_IO_TRX_MASK;
+}
+
+static void nrf905_setup_pwr(void)
+{
+  NRF905_IO_PWR_DDR |= NRF905_IO_PWR_MASK;
+}
+
+static void nrf905_set_pwr(void)
+{
+  NRF905_IO_PWR_PORT |= NRF905_IO_PWR_MASK;
+}
+
+static void nrf905_clear_pwr(void)
+{
+  NRF905_IO_PWR_PORT &= ~NRF905_IO_PWR_MASK;
+}
+
+static void nrf905_setup_cd(void)
+{
+  NRF905_IO_CD_DDR &= ~NRF905_IO_CD_MASK;
+}
+
+static uint8_t nrf905_is_cd(void)
+{
+  /* carrier detect */
+  return NRF905_IO_CD_PIN & NRF905_IO_CD_MASK;
+}
+
+static void nrf905_setup_dr(void)
+{
+  NRF905_IO_DR_DDR &= ~NRF905_IO_DR_MASK;
+}
+
+static uint8_t nrf905_is_dr(void)
+{
+  /* data ready */
+  return NRF905_IO_DR_PIN & NRF905_IO_DR_MASK;
+}
+
+static void nrf905_setup_am(void)
+{
+  NRF905_IO_AM_DDR &= ~NRF905_IO_AM_MASK;
+}
+
+static uint8_t nrf905_is_am(void)
+{
+  /* address match */
+  return NRF905_IO_AM_PIN & NRF905_IO_AM_MASK;
+}
+
+#endif /* CONFIG_LM4F120XL */
+
 /* global buffers */
 
 static uint8_t nrf905_config[10];
@@ -55,21 +294,11 @@ static uint8_t nrf905_payload_width = 16;
 #define NRF905_CMD_RTA 0x23
 #define NRF905_CMD_RRP 0x24
 
-static inline void nrf905_spi_cs_low(void)
-{
-  NRF905_IO_CSN_PORT &= ~NRF905_IO_CSN_MASK;
-}
-
-static inline void nrf905_spi_cs_high(void)
-{
-  NRF905_IO_CSN_PORT |= NRF905_IO_CSN_MASK;
-}
-
 static void nrf905_cmd_prolog(uint8_t cmd)
 {
   /* in case it is already selected */
-  nrf905_spi_cs_high();
-  nrf905_spi_cs_low();
+  spi_cs_high();
+  spi_cs_low();
   spi_write_uint8(cmd);
 }
 
@@ -77,14 +306,14 @@ static void nrf905_cmd_read(uint8_t cmd, uint8_t* buf, uint8_t size)
 {
   nrf905_cmd_prolog(cmd);
   spi_read(buf, size);
-  nrf905_spi_cs_high();
+  spi_cs_high();
 }
 
 static void nrf905_cmd_write(uint8_t cmd, const uint8_t* buf, uint8_t size)
 {
   nrf905_cmd_prolog(cmd);
   spi_write(buf, size);
-  nrf905_spi_cs_high();
+  spi_cs_high();
 }
 
 static void nrf905_cmd_wc(void)
@@ -129,11 +358,11 @@ static uint8_t nrf905_read_status(void)
   uint8_t x;
 
   /* in case it is already selected */
-  nrf905_spi_cs_high();
+  spi_cs_high();
 
-  nrf905_spi_cs_low();
+  spi_cs_low();
   x = spi_read_uint8();
-  nrf905_spi_cs_high();
+  spi_cs_high();
 
   return x;
 }
@@ -207,13 +436,6 @@ static void nrf905_set_tx_pw(uint8_t x)
 {
   /* config[26:31] */
   nrf905_clear_set_config(3, 3, 6, x);
-}
-
-static void __nrf905_set_rx_addr(const uint8_t* a, uint8_t w)
-{
-  /* config[32:63] */
-  uint8_t i;
-  for (i = 0; i != w; ++i) nrf905_clear_set_config(4 + i, 0, 8, a[i]);
 }
 
 static void nrf905_set_up_clk_freq(uint8_t x)
@@ -319,23 +541,6 @@ static void nrf905_set_channel_927_8(void)
 
 /* control signals */
 
-static uint8_t nrf905_is_cd(void)
-{
-  /* carrier detect */
-  return NRF905_IO_CD_PIN & NRF905_IO_CD_MASK;
-}
-
-static uint8_t nrf905_is_dr(void)
-{
-  /* data ready */
-  return NRF905_IO_DR_PIN & NRF905_IO_DR_MASK;
-}
-
-static uint8_t nrf905_is_am(void)
-{
-  /* address match */
-  return NRF905_IO_AM_PIN & NRF905_IO_AM_MASK;
-}
 
 /* operating modes */
 
@@ -344,7 +549,7 @@ static void nrf905_set_powerdown(void)
   /* minimize power consumption to 3uA */
   /* configuration word is maintained */
 
-  NRF905_IO_PWR_PORT &= ~NRF905_IO_PWR_MASK;
+  nrf905_clear_pwr();
 }
 
 static void nrf905_set_standby(void)
@@ -352,27 +557,27 @@ static void nrf905_set_standby(void)
   /* minimize power consumption to 50uA */
   /* maintains short startup time */
 
-  NRF905_IO_TRX_PORT |= NRF905_IO_TRX_MASK;
-  NRF905_IO_PWR_PORT |= NRF905_IO_PWR_MASK;  
+  nrf905_set_trx();
+  nrf905_set_pwr();
 }
 
 static void nrf905_set_tx(void)
 {
-  NRF905_IO_TXE_PORT |= NRF905_IO_TXE_MASK;
-  NRF905_IO_TRX_PORT |= NRF905_IO_TRX_MASK;
-  NRF905_IO_PWR_PORT |= NRF905_IO_PWR_MASK;
+  nrf905_set_txe();
+  nrf905_set_trx();
+  nrf905_set_pwr();
 }
 
 static void nrf905_set_rx(void)
 {
-  NRF905_IO_TXE_PORT &= ~NRF905_IO_TXE_MASK;
-  NRF905_IO_TRX_PORT |= NRF905_IO_TRX_MASK;
-  NRF905_IO_PWR_PORT |= NRF905_IO_PWR_MASK;
+  nrf905_clear_txe();
+  nrf905_set_trx();
+  nrf905_set_pwr();
 }
 
-static void nrf905_disable_txrx(void)
+static void nrf905_disable_trxx(void)
 {
-  NRF905_IO_TRX_PORT &= ~NRF905_IO_TRX_MASK;
+  nrf905_clear_trx();
 }
 
 /* exported */
@@ -420,21 +625,25 @@ static void nrf905_set_rx_addr(const uint8_t* a, uint8_t w)
 
 static void nrf905_setup(void)
 {
-  /* spi cs, pb2 */
-  NRF905_IO_CSN_DDR |= NRF905_IO_CSN_MASK;
-  nrf905_spi_cs_high();
+#if defined(CONFIG_LM4F120XL)
+  /* cs already setup in softspi.c */
+#else
+  spi_setup_cs();
+#endif
+
+  spi_cs_high();
 
   /* control signals */
-  NRF905_IO_TXE_DDR |= NRF905_IO_TXE_MASK;
-  NRF905_IO_TRX_DDR |= NRF905_IO_TRX_MASK;
-  NRF905_IO_PWR_DDR |= NRF905_IO_PWR_MASK;
-  NRF905_IO_CD_DDR &= ~NRF905_IO_CD_MASK;
-  NRF905_IO_AM_DDR &= ~NRF905_IO_AM_MASK;
-  NRF905_IO_DR_DDR &= ~NRF905_IO_DR_MASK;
+  nrf905_setup_txe();
+  nrf905_setup_trx();
+  nrf905_setup_pwr();
+  nrf905_setup_cd();
+  nrf905_setup_am();
+  nrf905_setup_dr();
 
   /* default config */
-  nrf905_set_channel_868_4();
-  /* nrf905_set_channel_868_6(); */
+  /* nrf905_set_channel_868_4(); */
+  nrf905_set_channel_868_6();
   /* -10db */
   nrf905_set_pa_pwr(0);
   /* power reduction disabled */

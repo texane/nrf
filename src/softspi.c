@@ -147,6 +147,10 @@ static inline uint8_t softspi_is_miso(void)
 
 #endif /* ATMEGA328P */
 
+static inline void softspi_set_sck_freq(uint8_t x)
+{
+}
+
 static inline void softspi_write_bit(uint8_t x, uint8_t m)
 {
   /* dac7554 samples at clock falling edge */

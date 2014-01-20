@@ -7,8 +7,7 @@
 #include "driverlib/rom.h"
 #include "driverlib/sysctl.h"
 #include "utils/uartstdio.h"
-
-#include "./nrf905_lm4f120xl.c"
+#include "../../../src/nrf905.c"
 
 #ifdef DEBUG
 void __error__(char* pcFilename, unsigned long ulLine)
