@@ -11,6 +11,14 @@
 
 #include "softspi.c"
 
+#define SPI_SCK_FREQ_FOSC2 ((1 << 2) | 0)
+#define SPI_SCK_FREQ_FOSC4 ((0 << 2) | 0)
+#define SPI_SCK_FREQ_FOSC8 ((1 << 2) | 1)
+#define SPI_SCK_FREQ_FOSC16 ((0 << 2) | 1)
+#define SPI_SCK_FREQ_FOSC32 ((1 << 2) | 2)
+#define SPI_SCK_FREQ_FOSC64 ((0 << 2) | 2)
+#define SPI_SCK_FREQ_FOSC128 ((0 << 2) | 3)
+
 static inline void spi_setup_master(void)
 {
   softspi_setup_master();
