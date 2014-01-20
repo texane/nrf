@@ -22,22 +22,22 @@
 #define NRF905_IO_TXE_MASK (1 << 2)
 #define NRF905_IO_TXE_DDR DDRD
 #define NRF905_IO_TXE_PORT PORTD
-/* TRX is also known as CE */
-#define NRF905_IO_TRX_MASK (1 << 3)
-#define NRF905_IO_TRX_DDR DDRD
-#define NRF905_IO_TRX_PORT PORTD
-#define NRF905_IO_PWR_MASK (1 << 4)
+#define NRF905_IO_PWR_MASK (1 << 3)
 #define NRF905_IO_PWR_DDR DDRD
 #define NRF905_IO_PWR_PORT PORTD
+/* TRX is also known as CE */
+#define NRF905_IO_TRX_MASK (1 << 4)
+#define NRF905_IO_TRX_DDR DDRD
+#define NRF905_IO_TRX_PORT PORTD
 #define NRF905_IO_CD_MASK (1 << 5)
 #define NRF905_IO_CD_DDR DDRD
 #define NRF905_IO_CD_PIN PIND
-#define NRF905_IO_AM_MASK (1 << 6)
-#define NRF905_IO_AM_DDR DDRD
-#define NRF905_IO_AM_PIN PIND
-#define NRF905_IO_DR_MASK (1 << 7)
+#define NRF905_IO_DR_MASK (1 << 6)
 #define NRF905_IO_DR_DDR DDRD
 #define NRF905_IO_DR_PIN PIND
+#define NRF905_IO_AM_MASK (1 << 7)
+#define NRF905_IO_AM_DDR DDRD
+#define NRF905_IO_AM_PIN PIND
 
 /* global buffers */
 
@@ -292,6 +292,11 @@ static void nrf905_set_channel_868_4(void)
   nrf905_set_channel(1, 0x0076);
 }
 
+static void nrf905_set_channel_868_6(void)
+{
+  nrf905_set_channel(1, 0x0077);
+}
+
 static void nrf905_set_channel_869_8(void)
 {
   nrf905_set_channel(1, 0x007d);
@@ -355,12 +360,14 @@ static void nrf905_set_tx(void)
 {
   NRF905_IO_TXE_PORT |= NRF905_IO_TXE_MASK;
   NRF905_IO_TRX_PORT |= NRF905_IO_TRX_MASK;
+  NRF905_IO_PWR_PORT |= NRF905_IO_PWR_MASK;
 }
 
 static void nrf905_set_rx(void)
 {
   NRF905_IO_TXE_PORT &= ~NRF905_IO_TXE_MASK;
   NRF905_IO_TRX_PORT |= NRF905_IO_TRX_MASK;
+  NRF905_IO_PWR_PORT |= NRF905_IO_PWR_MASK;
 }
 
 static void nrf905_disable_txrx(void)
@@ -427,6 +434,7 @@ static void nrf905_setup(void)
 
   /* default config */
   nrf905_set_channel_868_4();
+  /* nrf905_set_channel_868_6(); */
   /* -10db */
   nrf905_set_pa_pwr(0);
   /* power reduction disabled */
