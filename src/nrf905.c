@@ -546,7 +546,7 @@ static void nrf905_set_standby(void)
   /* minimize power consumption to 50uA */
   /* maintains short startup time */
 
-  nrf905_set_trx();
+  nrf905_clear_trx();
   nrf905_set_pwr();
 }
 
@@ -573,16 +573,19 @@ static void nrf905_disable_trxx(void)
 
 static void nrf905_write_payload(void)
 {
+  /* writing the payload must be done with txr_ce = 0 */
+  nrf905_clear_trx();
+
   nrf905_cmd_write(NRF905_CMD_WTP, nrf905_payload_buf, nrf905_payload_width);
 
   /* send the packet */
   nrf905_set_tx();
 
-  /* a packet is always transmitted */
-  /* before the new mode is applied */
+  while (nrf905_is_dr() == 0) ;
 
+  /* a packet is transmit first, then txr is checked */
   /* leave in standby mode */
-  nrf905_set_standby();
+  nrf905_clear_trx();
 }
 
 static void nrf905_read_payload(void)
