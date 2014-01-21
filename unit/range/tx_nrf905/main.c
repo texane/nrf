@@ -78,6 +78,28 @@ static void make_pattern(void)
     nrf905_payload_buf[i] = x;
 }
 
+static uint8_t to_hex(uint8_t x)
+{
+  if ((x >= 0) && (x <= 9)) return '0' + x;
+  return 'a' + (x - 0xa);
+}
+
+static void dump_config(void)
+{
+  uint8_t c;
+  uint8_t i;
+
+  for (i = 0; i != sizeof(nrf905_config); ++i)
+  {
+    c = to_hex(nrf905_config[i] >> 4);
+    uart_write(&c, 1);
+    c = to_hex(nrf905_config[i] & 0xf);
+    uart_write(&c, 1);
+  }
+
+  uart_write((const uint8_t*)"\r\n", 2);
+}
+
 int main(void)
 {
   uint8_t tx_addr[3] = { 0x01, 0x02, 0x03 };
@@ -95,7 +117,12 @@ int main(void)
   nrf905_set_tx_addr(tx_addr, 3);
   nrf905_set_rx_addr(rx_addr, 3);
 
-  nrf905_set_standby();
+  dump_config();
+  uint8_t i;
+  for (i = 0; i != sizeof(nrf905_config); ++i)
+    nrf905_config[i] = 0x2a;
+  nrf905_cmd_rc();
+  dump_config();
 
 #if 0
   {

@@ -383,89 +383,73 @@ static void nrf905_clear_set_config(uint8_t i, uint8_t j, uint8_t w, uint8_t x)
 
 static void nrf905_set_ch_no(uint16_t x)
 {
-  /* config[0:8] */
   nrf905_clear_set_config(0, 0, 8, x & 0xff);
   nrf905_clear_set_config(1, 0, 1, x >> 8);
 }
 
 static void nrf905_set_hfreq_pll(uint8_t x)
 {
-  /* config[9] */
   nrf905_clear_set_config(1, 1, 1, x);
 }
 
 static void nrf905_set_pa_pwr(uint8_t x)
 {
-  /* config[10:11] */
   nrf905_clear_set_config(1, 2, 2, x);
 }
 
 static void nrf905_set_rx_red_pwr(uint8_t x)
 {
-  /* config[12] */
   nrf905_clear_set_config(1, 3, 1, x);
 }
 
 static void nrf905_set_auto_retran(uint8_t x)
 {
-  /* config[13] */
   nrf905_clear_set_config(1, 4, 1, x);
 }
 
 static void nrf905_set_rx_afw(uint8_t x)
 {
-  /* config[14:16] */
-  nrf905_clear_set_config(1, 5, 2, x & 3);
-  nrf905_clear_set_config(2, 0, 1, x >> 2);
+  nrf905_clear_set_config(2, 0, 3, x);
 }
 
 static void nrf905_set_tx_afw(uint8_t x)
 {
-  /* config[17:19] */
-  nrf905_clear_set_config(2, 1, 3, x);
+  nrf905_clear_set_config(2, 4, 3, x);
 }
 
 static void nrf905_set_rx_pw(uint8_t x)
 {
-  /* config[20:25] */
-  nrf905_clear_set_config(2, 4, 4, x);
-  nrf905_clear_set_config(3, 0, 2, x >> 4);
+  nrf905_clear_set_config(3, 0, 6, x);
 }
 
 static void nrf905_set_tx_pw(uint8_t x)
 {
-  /* config[26:31] */
-  nrf905_clear_set_config(3, 3, 6, x);
+  nrf905_clear_set_config(4, 0, 6, x);
 }
 
 static void nrf905_set_up_clk_freq(uint8_t x)
 {
-  /* config[64:65] */
-  nrf905_clear_set_config(8, 0, 2, x);
+  nrf905_clear_set_config(9, 0, 2, x);
 }
 
 static void nrf905_set_up_clk_en(uint8_t x)
 {
-  /* config[66] */
-  nrf905_clear_set_config(8, 2, 1, x);
+  nrf905_clear_set_config(9, 2, 1, x);
 }
 
 static void nrf905_set_xof(uint8_t x)
 {
-  /* config[67:69] */
-  nrf905_clear_set_config(8, 3, 3, x);
+  nrf905_clear_set_config(9, 3, 3, x);
 }
 
 static void nrf905_set_crc_en(uint8_t x)
 {
-  /* config[70] */
-  nrf905_clear_set_config(8, 6, 1, x);
+  nrf905_clear_set_config(9, 6, 1, x);
 }
 
 static void nrf905_set_crc_mode(uint8_t x)
 {
-  /* config[71] */
-  nrf905_clear_set_config(8, 7, 1, x);
+  nrf905_clear_set_config(9, 7, 1, x);
 }
 
 /* rf channel */
@@ -517,6 +501,11 @@ static void nrf905_set_channel_868_4(void)
 static void nrf905_set_channel_868_6(void)
 {
   nrf905_set_channel(1, 0x0077);
+}
+
+static void nrf905_set_channel_868_8(void)
+{
+  nrf905_set_channel(1, 0x0078);
 }
 
 static void nrf905_set_channel_869_8(void)
@@ -618,7 +607,7 @@ static void nrf905_set_rx_addr(const uint8_t* a, uint8_t w)
   /* config[32:63] */
   uint8_t i;
   for (i = 0; i != w; ++i)
-    nrf905_clear_set_config(4 + i, 0, 8, a[i]);
+    nrf905_clear_set_config(5 + i, 0, 8, a[i]);
   nrf905_set_rx_afw(w);
   nrf905_cmd_wc();
 }
@@ -643,7 +632,7 @@ static void nrf905_setup(void)
 
   /* default config */
   /* nrf905_set_channel_868_4(); */
-  nrf905_set_channel_868_6();
+  nrf905_set_channel_868_8();
   /* -10db */
   nrf905_set_pa_pwr(0);
   /* power reduction disabled */
