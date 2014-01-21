@@ -664,9 +664,9 @@ static void nrf905_setup(void)
   nrf905_set_crc_en(0);
   nrf905_set_crc_mode(0);
 
-  /* commit the configuration */
-  nrf905_cmd_wc();
-
   /* default to powerdown */
   nrf905_set_powerdown();
+
+  /* commit the configuration */
+  nrf905_cmd_wc();
 }
