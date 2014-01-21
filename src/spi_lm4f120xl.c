@@ -7,6 +7,8 @@
 #define CONFIG_LM4F120XL 1
 #endif
 
+/* mode 0: captured at rising edge, propagated at falling */
+#define SOFTSPI_MODE_0 1
 #define SOFTSPI_DONT_USE_MISO 0
 
 #include "softspi.c"

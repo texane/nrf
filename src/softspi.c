@@ -153,12 +153,18 @@ static inline void softspi_set_sck_freq(uint8_t x)
 
 static inline void softspi_write_bit(uint8_t x, uint8_t m)
 {
-  /* dac7554 samples at clock falling edge */
-
   /* 5 insns per bit */
 
-  softspi_clk_high();
+#if defined(SOFTSPI_MODE_0) /* cpol == 0, cpha == 0 */
   if (x & m) softspi_mosi_high(); else softspi_mosi_low();
+#endif
+
+  softspi_clk_high();
+
+#if !defined(SOFTSPI_MODE_0)
+  if (x & m) softspi_mosi_high(); else softspi_mosi_low();
+#endif
+
   softspi_clk_low();
 }
 
@@ -186,16 +192,17 @@ static inline void softspi_write_uint16(uint16_t x)
 
 static inline void softspi_read_bit(uint8_t* x, uint8_t i)
 {
-  /* read at falling edge */
-
   softspi_clk_high();
-#if 0
-  /* no need, atmega328p clock below 50mhz */
-  /* softspi_wait_clk(); */
+
+#if defined(SOFTSPI_MODE_0) /* cpol == 0, cpha == 0 */
+  if (softspi_is_miso()) *x |= 1 << i;
 #endif
+
   softspi_clk_low();
 
+#if !defined(SOFTSPI_MODE_0)
   if (softspi_is_miso()) *x |= 1 << i;
+#endif
 }
 
 static uint8_t softspi_read_uint8(void)
