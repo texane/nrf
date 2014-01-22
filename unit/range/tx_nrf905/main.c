@@ -71,10 +71,11 @@ static void wait(void)
 
 static void make_pattern(void)
 {
-  uint8_t i;
-  uint8_t x;
+  static uint8_t x = 0;
 
-  for (i = 0, x = 0x2a; i != nrf905_payload_width; ++i, ++x)
+  uint8_t i;
+
+  for (i = 0; i != nrf905_payload_width; ++i, ++x)
     nrf905_payload_buf[i] = x;
 }
 
@@ -102,8 +103,8 @@ static void dump_config(void)
 
 int main(void)
 {
-  uint8_t tx_addr[3] = { 0x01, 0x02, 0x03 };
-  uint8_t rx_addr[3] = { 0x0a, 0x0b, 0x0c };
+  uint8_t tx_addr[4] = { 0x01, 0x02, 0x03, 0x04 };
+  uint8_t rx_addr[4] = { 0x0a, 0x0b, 0x0c, 0x0d };
 
   sys_setup();
 
@@ -114,15 +115,17 @@ int main(void)
   spi_set_sck_freq(SPI_SCK_FREQ_FOSC2);
 
   nrf905_setup();
-  nrf905_set_tx_addr(tx_addr, 3);
-  nrf905_set_rx_addr(rx_addr, 3);
+  nrf905_set_tx_addr(tx_addr, 4);
+  nrf905_set_rx_addr(rx_addr, 4);
 
+#if 1
   dump_config();
   uint8_t i;
   for (i = 0; i != sizeof(nrf905_config); ++i)
     nrf905_config[i] = 0x2a;
   nrf905_cmd_rc();
   dump_config();
+#endif
 
 #if 0
   {

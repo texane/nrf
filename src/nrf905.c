@@ -282,7 +282,7 @@ static uint8_t nrf905_is_am(void)
 
 static uint8_t nrf905_config[10];
 static uint8_t nrf905_payload_buf[32];
-static uint8_t nrf905_payload_width = 16;
+static uint8_t nrf905_payload_width = 32;
 
 /* spi communication */
 
@@ -399,12 +399,12 @@ static void nrf905_set_pa_pwr(uint8_t x)
 
 static void nrf905_set_rx_red_pwr(uint8_t x)
 {
-  nrf905_clear_set_config(1, 3, 1, x);
+  nrf905_clear_set_config(1, 4, 1, x);
 }
 
 static void nrf905_set_auto_retran(uint8_t x)
 {
-  nrf905_clear_set_config(1, 4, 1, x);
+  nrf905_clear_set_config(1, 5, 1, x);
 }
 
 static void nrf905_set_rx_afw(uint8_t x)
@@ -458,8 +458,8 @@ static void nrf905_set_crc_mode(uint8_t x)
 
 static void nrf905_set_channel(uint8_t hfreq_pll, uint16_t ch_no)
 {
-  nrf905_set_hfreq_pll(hfreq_pll);
   nrf905_set_ch_no(ch_no);
+  nrf905_set_hfreq_pll(hfreq_pll);
 }
 
 static void nrf905_set_channel_430_0(void)
@@ -521,6 +521,18 @@ static void nrf905_set_channel_902_2(void)
 static void nrf905_set_channel_902_4(void)
 {
   nrf905_set_channel(1, 0x0120);
+}
+
+static void nrf905_set_channel_908_4(void)
+{
+  /* us */
+  nrf905_set_channel(1, 0x013e);
+}
+
+static void nrf905_set_channel_919_8(void)
+{
+  /* hk */
+  nrf905_set_channel(1, 0x177);
 }
 
 static void nrf905_set_channel_927_8(void)
@@ -585,7 +597,7 @@ static void nrf905_write_payload(void)
 
   /* a packet is transmit first, then txr is checked */
   /* leave in standby mode */
-  nrf905_clear_trx();
+  nrf905_set_trx();
 }
 
 static void nrf905_read_payload(void)
@@ -634,10 +646,16 @@ static void nrf905_setup(void)
   nrf905_setup_dr();
 
   /* default config */
+  nrf905_set_channel_430_0();
+  /* nrf905_set_channel_434_7(); */
   /* nrf905_set_channel_868_4(); */
-  nrf905_set_channel_868_8();
+  /* nrf905_set_channel_868_8(); */
+  /* nrf905_set_channel_908_4(); */
+  /* nrf905_set_channel_919_8(); */
+  /* nrf905_set_channel_927_8(); */
   /* -10db */
   nrf905_set_pa_pwr(0);
+  /* nrf905_set_pa_pwr(3); */
   /* power reduction disabled */
   nrf905_set_rx_red_pwr(0);
   /* auto retransmission disabled */
@@ -657,7 +675,7 @@ static void nrf905_setup(void)
   nrf905_set_crc_mode(0);
 
   /* default to powerdown */
-  nrf905_set_powerdown();
+  nrf905_set_standby();
 
   /* commit the configuration */
   nrf905_cmd_wc();
