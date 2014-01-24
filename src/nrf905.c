@@ -282,7 +282,7 @@ static uint8_t nrf905_is_am(void)
 
 static uint8_t nrf905_config[10];
 static uint8_t nrf905_payload_buf[32];
-static uint8_t nrf905_payload_width = 32;
+static uint8_t nrf905_payload_width;
 
 /* spi communication */
 
@@ -420,11 +420,19 @@ static void nrf905_set_tx_afw(uint8_t x)
 static void nrf905_set_rx_pw(uint8_t x)
 {
   nrf905_clear_set_config(3, 0, 6, x);
+  nrf905_payload_width = x;
 }
 
 static void nrf905_set_tx_pw(uint8_t x)
 {
   nrf905_clear_set_config(4, 0, 6, x);
+  nrf905_payload_width = x;
+}
+
+static void nrf905_set_payload_width(uint8_t x)
+{
+  nrf905_set_rx_pw(x);
+  nrf905_set_tx_pw(x);
 }
 
 static void nrf905_set_up_clk_freq(uint8_t x)
@@ -663,8 +671,8 @@ static void nrf905_setup(void)
   /* 24 bits addresses */
   nrf905_set_rx_afw(3);
   nrf905_set_tx_afw(3);
-  nrf905_set_rx_pw(nrf905_payload_width);
-  nrf905_set_tx_pw(nrf905_payload_width);
+  nrf905_set_rx_pw(16);
+  nrf905_set_tx_pw(16);
   /* 500KHz output clock frequency */
   nrf905_set_up_clk_freq(3);
   /* external clock signal disabled */
@@ -678,5 +686,10 @@ static void nrf905_setup(void)
   nrf905_set_standby();
 
   /* commit the configuration */
+  nrf905_cmd_wc();
+}
+
+static void nrf905_commit_config(void)
+{
   nrf905_cmd_wc();
 }

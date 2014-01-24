@@ -100,7 +100,6 @@ int main(void)
 {
   uint8_t tx_addr[4] = { 0xaa, 0xab, 0xac, 0xad };
   uint8_t rx_addr[4] = { 0xa1, 0xa2, 0xa3, 0xa4 };
-  uint8_t i;
 
   sys_setup();
 
@@ -111,15 +110,20 @@ int main(void)
   spi_set_sck_freq(SPI_SCK_FREQ_FOSC2);
 
   nrf905_setup();
-  nrf905_set_tx_addr(tx_addr, 4);
-  nrf905_set_rx_addr(rx_addr, 4);
+  nrf905_set_tx_addr(tx_addr, 3);
+  nrf905_set_rx_addr(rx_addr, 3);
+  nrf905_set_payload_width(16);
+  nrf905_commit_config();
 
-#if 1
-  dump_config();
-  for (i = 0; i != sizeof(nrf905_config); ++i)
-    nrf905_config[i] = 0x2a;
-  nrf905_cmd_rc();
-  dump_config();
+#if 0
+  {
+    uint8_t i;
+    dump_config();
+    for (i = 0; i != sizeof(nrf905_config); ++i)
+      nrf905_config[i] = 0x2a;
+    nrf905_cmd_rc();
+    dump_config();
+  }
 #endif
 
 #if 0
@@ -131,8 +135,6 @@ int main(void)
     uart_write((uint8_t*)"starting\r\n", 10);
   }
 #endif
-
-  nrf905_set_rx();
 
   while (1)
   {
