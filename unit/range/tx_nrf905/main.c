@@ -71,12 +71,17 @@ static void wait(void)
 
 static void make_pattern(void)
 {
-  static uint8_t x = 0;
+  static uint8_t x = 0x2a;
 
   uint8_t i;
 
-  for (i = 0; i != nrf905_payload_width; ++i, ++x)
+  for (i = 0; i != nrf905_payload_width; ++i)
     nrf905_payload_buf[i] = x;
+
+  nrf905_payload_buf[0] = 0xa1;
+  nrf905_payload_buf[1] = 0xa2;
+  nrf905_payload_buf[2] = 0xa3;
+  nrf905_payload_buf[3] = 0xa4;
 }
 
 static uint8_t to_hex(uint8_t x)

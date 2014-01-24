@@ -98,7 +98,7 @@ static void dump_config(void)
 
 int main(void)
 {
-  uint8_t tx_addr[4] = { 0xaa, 0xab, 0xac, 0xdd };
+  uint8_t tx_addr[4] = { 0xaa, 0xab, 0xac, 0xad };
   uint8_t rx_addr[4] = { 0xa1, 0xa2, 0xa3, 0xa4 };
   uint8_t i;
 
