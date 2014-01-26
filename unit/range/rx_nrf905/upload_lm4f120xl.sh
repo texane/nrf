@@ -10,4 +10,5 @@ debian)
  ;;
 esac
 
-$LM4F120XL_DIR/lm4tools/lm4flash/lm4flash -s 0E1030B3 main.bin
+# $LM4F120XL_DIR/lm4tools/lm4flash/lm4flash -s 0E1030B3 main.bin
+$LM4F120XL_DIR/lm4tools/lm4flash/lm4flash -s 0E1068DD main.bin

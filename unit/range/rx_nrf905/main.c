@@ -69,6 +69,18 @@ static void wait(void)
 
 #endif
 
+static int check_pattern(void)
+{
+  uint8_t i;
+
+  for (i = 0; i != nrf905_payload_width; ++i)
+  {
+    if (nrf905_payload_buf[i] != 0x2a) return -1;
+  }
+
+  return 0;
+}
+
 static uint8_t to_hex(uint8_t x)
 {
   if ((x >= 0) && (x <= 9)) return '0' + x;
@@ -96,6 +108,20 @@ static void dump_config(void)
   dump_buf(nrf905_config, sizeof(nrf905_config));
 }
 
+static void led_setup(void)
+{
+#define LED_RED GPIO_PIN_1
+#define LED_BLUE GPIO_PIN_2
+#define LED_GREEN GPIO_PIN_3
+  ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
+  ROM_GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, LED_RED | LED_BLUE | LED_GREEN);
+}
+
+static void led_set(uint32_t mask)
+{
+  ROM_GPIOPinWrite(GPIO_PORTF_BASE, LED_RED | LED_BLUE | LED_GREEN, mask);
+}
+
 int main(void)
 {
   uint8_t tx_addr[4] = { 0xaa, 0xab, 0xac, 0xad };
@@ -110,9 +136,9 @@ int main(void)
   spi_set_sck_freq(SPI_SCK_FREQ_FOSC2);
 
   nrf905_setup();
-  nrf905_set_tx_addr(tx_addr, 3);
-  nrf905_set_rx_addr(rx_addr, 3);
-  nrf905_set_payload_width(16);
+  nrf905_set_tx_addr(tx_addr, 4);
+  nrf905_set_rx_addr(rx_addr, 4);
+  nrf905_set_payload_width(2);
   nrf905_commit_config();
 
 #if 0
@@ -136,23 +162,46 @@ int main(void)
   }
 #endif
 
+  led_setup();
+
+  nrf905_set_rx();
+
   while (1)
   {
-    nrf905_set_rx();
+  wait_cd:
+    if (nrf905_is_cd() == 0)
+    {
+      led_set(LED_RED);
+      while (nrf905_is_cd() == 0) ;
+      /* uart_write((uint8_t*)"cd\r\n", 4); */
+    }
 
-    while (nrf905_is_cd() == 0) ;
-    uart_write((uint8_t*)"cd\r\n", 4);
-
+#if 0
     while (nrf905_is_am() == 0) ;
     uart_write((uint8_t*)"am\r\n", 4);
+    led_mask = LED_GREEN;
+#endif
 
-    while (nrf905_is_dr() == 0) ;
+    led_set(LED_GREEN);
+
+  wait_dr:
+    while (nrf905_is_dr() == 0)
+    {
+      if (nrf905_is_cd() == 0) goto wait_cd;
+    }
     uart_write((uint8_t*)"dr\r\n", 4);
 
-    wait();
+    /* wait(); */
     nrf905_read_payload();
 
-    dump_buf(nrf905_payload_buf, nrf905_payload_width);
+    if (check_pattern() == 0)
+    {
+      uart_write((uint8_t*)"ok\r\n", 4);
+      led_set(LED_BLUE);
+    }
+    else led_set(LED_GREEN);
+
+    goto wait_dr;
   }
 
   return 0;

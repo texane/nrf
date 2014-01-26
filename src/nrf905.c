@@ -475,6 +475,11 @@ static void nrf905_set_channel_430_0(void)
   nrf905_set_channel(0, 0x004a);
 }
 
+static void nrf905_set_channel_433_0(void)
+{
+  nrf905_set_channel(0, 0x006a);
+}
+
 static void nrf905_set_channel_433_1(void)
 {
   nrf905_set_channel(0, 0x006b);
@@ -654,7 +659,7 @@ static void nrf905_setup(void)
   nrf905_setup_dr();
 
   /* default config */
-  nrf905_set_channel_430_0();
+  nrf905_set_channel_433_0();
   /* nrf905_set_channel_434_7(); */
   /* nrf905_set_channel_868_4(); */
   /* nrf905_set_channel_868_8(); */
@@ -662,8 +667,8 @@ static void nrf905_setup(void)
   /* nrf905_set_channel_919_8(); */
   /* nrf905_set_channel_927_8(); */
   /* -10db */
-  nrf905_set_pa_pwr(0);
-  /* nrf905_set_pa_pwr(3); */
+  /* nrf905_set_pa_pwr(0); */
+  nrf905_set_pa_pwr(3);
   /* power reduction disabled */
   nrf905_set_rx_red_pwr(0);
   /* auto retransmission disabled */

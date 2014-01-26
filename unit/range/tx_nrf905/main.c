@@ -78,10 +78,12 @@ static void make_pattern(void)
   for (i = 0; i != nrf905_payload_width; ++i)
     nrf905_payload_buf[i] = x;
 
+#if 0
   nrf905_payload_buf[0] = 0xa1;
   nrf905_payload_buf[1] = 0xa2;
   nrf905_payload_buf[2] = 0xa3;
   nrf905_payload_buf[3] = 0xa4;
+#endif
 }
 
 static uint8_t to_hex(uint8_t x)
@@ -113,16 +115,16 @@ int main(void)
 
   sys_setup();
 
-  uart_setup();
+  /* uart_setup(); */
 
   /* setup spi first */
   spi_setup_master();
   spi_set_sck_freq(SPI_SCK_FREQ_FOSC2);
 
   nrf905_setup();
-  nrf905_set_tx_addr(tx_addr, 3);
-  nrf905_set_rx_addr(rx_addr, 3);
-  nrf905_set_payload_width(16);
+  nrf905_set_tx_addr(tx_addr, 4);
+  nrf905_set_rx_addr(rx_addr, 4);
+  nrf905_set_payload_width(2);
   nrf905_commit_config();
 
 #if 0
@@ -153,7 +155,7 @@ int main(void)
     make_pattern();
     nrf905_write_payload();
 
-    uart_write((uint8_t*)"x\r\n", 3);
+    /* uart_write((uint8_t*)"x\r\n", 3); */
   }
 
   return 0;
