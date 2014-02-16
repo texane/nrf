@@ -47,6 +47,20 @@ static void wait(void)
   ROM_SysCtlDelay(10000000);
 }
 
+static void led_setup(void)
+{
+#define LED_RED GPIO_PIN_1
+#define LED_BLUE GPIO_PIN_2
+#define LED_GREEN GPIO_PIN_3
+  ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
+  ROM_GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, LED_RED | LED_BLUE | LED_GREEN);
+}
+
+static void led_set(uint32_t mask)
+{
+  ROM_GPIOPinWrite(GPIO_PORTF_BASE, LED_RED | LED_BLUE | LED_GREEN, mask);
+}
+
 #else
 
 #include <avr/io.h>
@@ -67,7 +81,26 @@ static void wait(void)
       __asm__ __volatile__ ("nop");
 }
 
+static void led_setup(void)
+{
+}
+
+static void led_set(uint32_t x)
+{
+#define LED_RED 0
+#define LED_BLUE 0
+#define LED_GREEN 0
+}
+
 #endif
+
+static void reset_pattern(void)
+{
+  uint8_t i;
+
+  for (i = 0; i != nrf905_payload_width; ++i)
+    nrf905_payload_buf[i] = 0;
+}
 
 static int check_pattern(void)
 {
@@ -106,20 +139,6 @@ static void dump_buf(const uint8_t* buf, uint8_t n)
 static void dump_config(void)
 {
   dump_buf(nrf905_config, sizeof(nrf905_config));
-}
-
-static void led_setup(void)
-{
-#define LED_RED GPIO_PIN_1
-#define LED_BLUE GPIO_PIN_2
-#define LED_GREEN GPIO_PIN_3
-  ROM_SysCtlPeripheralEnable(SYSCTL_PERIPH_GPIOF);
-  ROM_GPIOPinTypeGPIOOutput(GPIO_PORTF_BASE, LED_RED | LED_BLUE | LED_GREEN);
-}
-
-static void led_set(uint32_t mask)
-{
-  ROM_GPIOPinWrite(GPIO_PORTF_BASE, LED_RED | LED_BLUE | LED_GREEN, mask);
 }
 
 int main(void)
@@ -190,6 +209,8 @@ int main(void)
       if (nrf905_is_cd() == 0) goto wait_cd;
     }
     uart_write((uint8_t*)"dr\r\n", 4);
+
+    reset_pattern();
 
     /* wait(); */
     nrf905_read_payload();
