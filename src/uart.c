@@ -3,26 +3,22 @@
 
 static inline void set_baud_rate(long baud)
 {
-  uint16_t UBRR0_value = ((F_CPU / 16 + baud / 2) / baud - 1);
-  UBRR0H = UBRR0_value >> 8;
-  UBRR0L = UBRR0_value;
+#ifndef CLK_PRESCAL
+#define CLK_PRESCAL (1UL)
+#endif
+
+  uint16_t x = ((F_CPU / (16UL * CLK_PRESCAL) + baud / 2) / baud - 1);
+  UBRR0H = x >> 8;
+  UBRR0L = x;
 }
 
 static void uart_setup(void)
 {
-  /* #define CONFIG_FOSC (F_CPU * 2) */
-  /* const uint16_t x = CONFIG_FOSC / (16 * BAUDS) - 1; */
-#if 0 /* (bauds == 9600) */
-  const uint16_t x = 206;
-#elif 0 /* (bauds == 115200) */
-  const uint16_t x = 16;
-#elif 0 /* (bauds == 500000) */
-  const uint16_t x = 3;
-#elif 0 /* (bauds == 1000000) */
-  const uint16_t x = 1;
-#endif
-
+#if (CLK_PRESCAL == 1UL)
   set_baud_rate(9600);
+#else
+  set_baud_rate(300);
+#endif
 
   /* baud doubler off  - Only needed on Uno XXX */
   UCSR0A &= ~(1 << U2X0);
