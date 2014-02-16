@@ -162,23 +162,23 @@ static uint8_t nrf905_is_am(void)
 #define NRF905_IO_SCK_PORT PORTB
 
 /* nrf905 misc pins */
-#define NRF905_IO_TXE_MASK (1 << 2)
+#define NRF905_IO_TXE_MASK (1 << 4)
 #define NRF905_IO_TXE_DDR DDRD
 #define NRF905_IO_TXE_PORT PORTD
-#define NRF905_IO_PWR_MASK (1 << 3)
+#define NRF905_IO_PWR_MASK (1 << 7)
 #define NRF905_IO_PWR_DDR DDRD
 #define NRF905_IO_PWR_PORT PORTD
 /* TRX is also known as CE */
-#define NRF905_IO_TRX_MASK (1 << 4)
+#define NRF905_IO_TRX_MASK (1 << 6)
 #define NRF905_IO_TRX_DDR DDRD
 #define NRF905_IO_TRX_PORT PORTD
-#define NRF905_IO_CD_MASK (1 << 5)
-#define NRF905_IO_CD_DDR DDRD
-#define NRF905_IO_CD_PIN PIND
-#define NRF905_IO_DR_MASK (1 << 6)
+#define NRF905_IO_CD_MASK (1 << 0)
+#define NRF905_IO_CD_DDR DDRB
+#define NRF905_IO_CD_PIN PINB
+#define NRF905_IO_DR_MASK (1 << 2)
 #define NRF905_IO_DR_DDR DDRD
 #define NRF905_IO_DR_PIN PIND
-#define NRF905_IO_AM_MASK (1 << 7)
+#define NRF905_IO_AM_MASK (1 << 5)
 #define NRF905_IO_AM_DDR DDRD
 #define NRF905_IO_AM_PIN PIND
 
