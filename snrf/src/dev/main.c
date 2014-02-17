@@ -4,8 +4,294 @@
 #include <avr/sleep.h>
 #include <avr/interrupt.h>
 #include "../common/snrf_common.h"
-#include "../../../src/nrf24l01p.c"
 #include "../../../src/uart.c"
+
+#define SNRF_CONFIG_NRF905 1
+
+#if (SNRF_CONFIG_NRF24L01P == 1)
+#include "../../../src/nrf24l01p.c"
+#elif (SNRF_CONFIG_NRF905 == 1)
+#include "../../../src/nrf905.c"
+#else
+#error "no transport layer defined"
+#endif
+
+
+/* nrf wrappers */
+
+static inline void nrf_setup(void)
+{
+  /* setup spi first */
+  spi_setup_master();
+  spi_set_sck_freq(SPI_SCK_FREQ_FOSC2);
+
+#if (SNRF_CONFIG_NRF24L01P == 1)
+
+  /* nrf24l01p default configuration */
+  nrf24l01p_setup();
+  nrf24l01p_disable_crc();
+  nrf24l01p_set_rate(NRF24L01P_RATE_2MBPS);
+  nrf24l01p_set_chan(2);
+  nrf24l01p_set_addr_width(NRF24L01P_ADDR_WIDTH_4);
+
+  /* rx address */
+  nrf24l01p_cmd_buf[0] = 0x10;
+  nrf24l01p_cmd_buf[1] = 0x10;
+  nrf24l01p_cmd_buf[2] = 0x10;
+  nrf24l01p_cmd_buf[3] = 0x10;
+  nrf24l01p_write_reg40(NRF24L01P_REG_RX_ADDR_P0);
+
+  /* tx address */
+  nrf24l01p_cmd_buf[0] = 0x20;
+  nrf24l01p_cmd_buf[1] = 0x20;
+  nrf24l01p_cmd_buf[2] = 0x20;
+  nrf24l01p_cmd_buf[3] = 0x20;
+  nrf24l01p_write_reg40(NRF24L01P_REG_TX_ADDR);
+
+  /* enable tx no ack command */
+  nrf24l01p_enable_tx_noack();
+
+#elif (SNRF_CONFIG_NRF905 == 1)
+
+  uint8_t tx_addr[4] = { 0x10, 0x10, 0x10, 0x10 };
+  uint8_t rx_addr[4] = { 0x20, 0x20, 0x20, 0x20 };
+
+  nrf905_setup();
+  nrf905_set_tx_addr(tx_addr, 4);
+  nrf905_set_rx_addr(rx_addr, 4);
+  nrf905_set_payload_width(16);
+  nrf905_commit_config();
+
+#endif
+}
+
+static inline void nrf_set_rx_mode(void)
+{
+  /* NOTE: enter in powerdown, leave in rx mode */
+
+#if (SNRF_CONFIG_NRF24L01P == 1)
+
+  nrf24l01p_powerdown_to_standby();
+  nrf24l01p_standby_to_rx();
+
+#elif (SNRF_CONFIG_NRF905 == 1)
+
+  nrf905_set_rx();
+
+#endif
+}
+
+static inline void nrf_set_powerdown_mode(void)
+{
+#if (SNRF_CONFIG_NRF24L01P == 1)
+
+  nrf24l01p_set_powerdown();
+
+#elif (SNRF_CONFIG_NRF905 == 1)
+
+  /* TODO: check the doc and current state */
+
+#endif
+}
+
+static inline void nrf_setup_rx_irq(void)
+{
+#if (SNRF_CONFIG_NRF24L01P == 1)
+
+  /* setup interrupt on change. disable pullup. */
+
+  NRF24L01P_IO_IRQ_DDR &= ~NRF24L01P_IO_IRQ_MASK;
+  NRF24L01P_IO_IRQ_PORT &= ~NRF24L01P_IO_IRQ_MASK;
+  PCICR |= NRF24L01P_IO_IRQ_PCICR_MASK;
+  NRF24L01P_IO_IRQ_PCMSK |= NRF24L01P_IO_IRQ_MASK;
+
+#elif (SNRF_CONFIG_NRF905 == 1)
+
+  NRF905_IO_IRQ_DDR &= ~NRF905_IO_IRQ_MASK;
+  NRF905_IO_IRQ_PORT &= ~NRF905_IO_IRQ_MASK;
+  PCICR |= NRF905_IO_IRQ_PCICR_MASK;
+  NRF905_IO_IRQ_PCMSK |= NRF905_IO_IRQ_MASK;
+
+#endif
+}
+
+static inline void nrf_disable_rx_irq(void)
+{
+#if (SNRF_CONFIG_NRF24L01P == 1)
+
+  NRF24L01P_IO_IRQ_PCMSK &= ~NRF24L01P_IO_IRQ_MASK;
+
+#elif (SNRF_CONFIG_NRF905 == 1)
+
+  NRF905_IO_IRQ_PCMSK &= ~NRF905_IO_IRQ_MASK;
+
+#endif
+}
+
+static inline void nrf_enable_rx_irq(void)
+{
+#if (SNRF_CONFIG_NRF24L01P == 1)
+
+  NRF24L01P_IO_IRQ_PCMSK |= NRF24L01P_IO_IRQ_MASK;
+
+#elif (SNRF_CONFIG_NRF905 == 1)
+
+  NRF905_IO_IRQ_PCMSK |= NRF905_IO_IRQ_MASK;
+
+#endif
+}
+
+static inline uint8_t nrf_get_rx_irq(void)
+{
+  /* NOTE: get and acknowledge irq if required */
+
+#if (SNRF_CONFIG_NRF24L01P == 1)
+
+  return nrf24l01p_is_rx_irq();
+
+#elif (SNRF_CONFIG_NRF905 == 1)
+
+  return nrf905_is_dr();
+
+#endif
+}
+
+static inline uint8_t nrf_peek_rx_irq(void)
+{
+  /* NOTE: get but do not acknowledge irq */
+
+#if (SNRF_CONFIG_NRF24L01P == 1)
+
+  return nrf24l01p_is_rx_irq_noread();
+
+#elif (SNRF_CONFIG_NRF905 == 1)
+
+  return nrf905_is_dr();
+
+#endif
+}
+
+static inline uint8_t nrf_read_payload(uint8_t** buf)
+{
+#if (SNRF_CONFIG_NRF24L01P == 1)
+
+  nrf24l01p_read_rx();
+  *buf = nrf24l01p_cmd_buf;
+  return nrf24l01p_cmd_len;
+
+#elif (SNRF_CONFIG_NRF905 == 1)
+
+  nrf905_read_payload();
+  *buf = nrf905_payload_buf;
+  return nrf905_payload_width;
+
+#endif
+}
+
+static inline void nrf_send_payload(uint8_t* p)
+{
+ /* NOTE: enter and leave in powerdown mode */
+
+#if (SNRF_CONFIG_NRF24L01P == 1)
+
+  nrf24l01p_powerdown_to_standby();
+  nrf24l01p_standby_to_tx();
+  nrf24l01p_write_tx_noack_zero(p);
+  nrf24l01p_complete_tx_noack_zero();
+  while (nrf24l01p_is_tx_irq() == 0) ;
+  nrf24l01p_set_powerdown();
+
+#elif (SNRF_CONFIG_NRF905 == 1)
+
+  nrf905_write_payload_zero(p);
+
+#endif
+}
+
+static inline void nrf_set_payload_width(uint8_t x)
+{
+#if (SNRF_CONFIG_NRF24L01P == 1)
+
+  nrf24l01p_set_payload_width(x);
+
+#elif (SNRF_CONFIG_NRF905 == 1)
+
+  nrf905_set_payload_width(x);
+  nrf905_commit_config();
+
+#endif
+}
+
+static inline uint8_t nrf_get_payload_width(void)
+{
+#if (SNRF_CONFIG_NRF24L01P == 1)
+
+  return nrf24l01p_read_reg8(NRF24L01P_REG_RX_PW_P0);
+
+#elif (SNRF_CONFIG_NRF905 == 1)
+
+  return nrf905_payload_width;
+
+#endif
+}
+
+static inline uint8_t nrf_set_addr_width(uint8_t x)
+{
+  /* x in bytes */
+
+#if (SNRF_CONFIG_NRF24L01P == 1)
+
+  static const uint8_t map[] =
+  {
+    NRF24L01P_ADDR_WIDTH_3,
+    NRF24L01P_ADDR_WIDTH_4,
+    NRF24L01P_ADDR_WIDTH_5
+  };
+
+#define ARRAY_COUNT(__a) (sizeof(__a) / sizeof((__a)[0]))
+  if (x >= ARRAY_COUNT(map)) return -1;
+
+  /* x in NRF24L01P_ADDR_WIDTH_xxx */
+  nrf24l01p_set_addr_width(map[x]);
+
+#elif (SNRF_CONFIG_NRF905 == 1)
+
+  /* x in bytes */
+  nrf905_set_rx_afw(x);
+  nrf905_set_tx_afw(x);
+  nrf905_commit_config();
+
+#endif
+
+  return 0;
+}
+
+static inline uint8_t nrf_get_addr_width(void)
+{
+  /* return the addr width in bytes */
+
+#if (SNRF_CONFIG_NRF24L01P == 1)
+
+  static const uint8_t map[] =
+  {
+    0xff, /* invalid */
+    0, /* width = 3 */
+    1, /* width = 4 */
+    2 /* width = 5 */
+  };
+
+  const uint8_t x = nrf24l01p_read_reg8(NRF24L01P_REG_SETUP_AW);
+
+  return map[x & 3];
+
+#elif (SNRF_CONFIG_NRF905 == 1)
+
+  /* TODO */
+
+  return 0;
+
+#endif
+}
 
 
 #if 0 /* unused */
@@ -31,11 +317,13 @@ static void set_led(uint8_t mask)
 
 #endif /* unused */
 
-ISR(PCINT0_vect)
-{
-  /* pin change 0 interrupt handler */
-  /* do nothing, processed by sequential in do_nrf */
-}
+
+/* interrupt on change handlers */
+/* do nothing, processed by sequential in do_nrf */
+
+ISR(PCINT0_vect) {}
+ISR(PCINT1_vect) {}
+ISR(PCINT2_vect) {}
 
 static inline void write_payload_msg(const uint8_t* data, uint8_t size)
 {
@@ -56,18 +344,18 @@ static uint8_t do_nrf(void)
 {
   /* return 0 if no msg processed, 1 otherwise */
 
-  uint8_t size;
+  uint8_t width;
+  uint8_t* buf;
 
-  if (nrf24l01p_is_rx_irq() == 0) return 0;
+  if (nrf_get_rx_irq() == 0) return 0;
 
-  nrf24l01p_read_rx();
+  width = nrf_read_payload(&buf);
 
-  size = nrf24l01p_cmd_len;
   /* TODO: use an error message */
-  if (nrf24l01p_cmd_len > SNRF_MAX_PAYLOAD_WIDTH)
-    size = SNRF_MAX_PAYLOAD_WIDTH;
+  if (width > SNRF_MAX_PAYLOAD_WIDTH)
+    width = SNRF_MAX_PAYLOAD_WIDTH;
 
-  write_payload_msg(nrf24l01p_cmd_buf, size);
+  write_payload_msg(buf, width);
 
   /* on message handled */
   return 1;
@@ -142,8 +430,6 @@ do {						\
   (__m)->u.compl.val = __LINE__;		\
 } while (0)
 
-#define ARRAY_COUNT(__a) (sizeof(__a) / sizeof((__a)[0]))
-
 static inline uint32_t uint32_to_le(uint32_t x)
 {
   return x;
@@ -199,12 +485,11 @@ static void handle_set_msg(snrf_msg_t* msg)
 
       if (val == SNRF_STATE_CONF)
       {
-	nrf24l01p_set_powerdown();
+	nrf_set_powerdown_mode();
       }
       else if (val == SNRF_STATE_TXRX)
       {
-	nrf24l01p_powerdown_to_standby();
-	nrf24l01p_standby_to_rx();
+	nrf_set_rx_mode();
       }
 
       snrf_state = val;
@@ -212,13 +497,16 @@ static void handle_set_msg(snrf_msg_t* msg)
       break ;
     }
 
+#if (SNRF_CONFIG_NRF24L01P == 1)
   case SNRF_KEY_CRC:
     if (val == SNRF_CRC_DISABLED) nrf24l01p_disable_crc();
     else if (val == SNRF_CRC_8) nrf24l01p_enable_crc8();
     else if (val == SNRF_CRC_16) nrf24l01p_enable_crc16();
     else MAKE_COMPL_ERROR(msg, SNRF_ERR_VAL);
     break ;
+#endif
 
+#if (SNRF_CONFIG_NRF24L01P == 1)
   case SNRF_KEY_RATE:
     {
       static const uint8_t map[] =
@@ -231,27 +519,21 @@ static void handle_set_msg(snrf_msg_t* msg)
       else nrf24l01p_set_rate(map[val]);
       break ;
     }
+#endif
 
+#if (SNRF_CONFIG_NRF24L01P == 1)
   case SNRF_KEY_CHAN:
     nrf24l01p_set_chan((uint8_t)val);
     break ;
+#endif
 
   case SNRF_KEY_ADDR_WIDTH:
     {
-      static const uint8_t map[] =
-      {
-	NRF24L01P_ADDR_WIDTH_3,
-	NRF24L01P_ADDR_WIDTH_4
-#if 0
-	/* not supported, value limited to 32 bits */
-	NRF24L01P_ADDR_WIDTH_5
-#endif
-      };
-      if (val >= ARRAY_COUNT(map)) MAKE_COMPL_ERROR(msg, SNRF_ERR_VAL);
-      else nrf24l01p_set_addr_width(map[val]);
+      if (nrf_set_addr_width(val)) MAKE_COMPL_ERROR(msg, SNRF_ERR_VAL);
       break ;
     }
 
+#if (SNRF_CONFIG_NRF24L01P == 1)
   case SNRF_KEY_RX_ADDR:
     nrf24l01p_cmd_buf[0] = (uint8_t)((val >> 24) & 0xff);
     nrf24l01p_cmd_buf[1] = (uint8_t)((val >> 16) & 0xff);
@@ -260,7 +542,9 @@ static void handle_set_msg(snrf_msg_t* msg)
     nrf24l01p_cmd_buf[4] = 0x00;
     nrf24l01p_write_reg40(NRF24L01P_REG_RX_ADDR_P0);
     break ;
+#endif
 
+#if (SNRF_CONFIG_NRF24L01P == 1)
   case SNRF_KEY_TX_ADDR:
     nrf24l01p_cmd_buf[0] = (uint8_t)((val >> 24) & 0xff);
     nrf24l01p_cmd_buf[1] = (uint8_t)((val >> 16) & 0xff);
@@ -269,7 +553,9 @@ static void handle_set_msg(snrf_msg_t* msg)
     nrf24l01p_cmd_buf[4] = 0x00;
     nrf24l01p_write_reg40(NRF24L01P_REG_TX_ADDR);
     break ;
+#endif
 
+#if (SNRF_CONFIG_NRF24L01P == 1)
   case SNRF_KEY_TX_ACK:
     /* disable tx ack */
     if (val == 0) nrf24l01p_enable_tx_noack();
@@ -277,10 +563,11 @@ static void handle_set_msg(snrf_msg_t* msg)
     else if (val == 1) nrf24l01p_disable_tx_noack();
     else MAKE_COMPL_ERROR(msg, SNRF_ERR_VAL);
     break ;
+#endif
 
   case SNRF_KEY_PAYLOAD_WIDTH:
     if (val > SNRF_MAX_PAYLOAD_WIDTH) MAKE_COMPL_ERROR(msg, SNRF_ERR_VAL);
-    else nrf24l01p_set_payload_width((uint8_t)val);
+    else nrf_set_payload_width((uint8_t)val);
     break ;
 
   case SNRF_KEY_UART_FLAGS:
@@ -307,6 +594,7 @@ static void handle_get_msg(snrf_msg_t* msg)
     msg->u.compl.val = uint32_to_le(snrf_state);
     break ;
 
+#if (SNRF_CONFIG_NRF24L01P == 1)
   case SNRF_KEY_CRC:
     {
       const uint8_t x = nrf24l01p_read_reg8(NRF24L01P_REG_CONFIG);
@@ -315,7 +603,9 @@ static void handle_get_msg(snrf_msg_t* msg)
       else msg->u.compl.val = uint32_to_le(2);
       break ;
     }
+#endif
 
+#if (SNRF_CONFIG_NRF24L01P == 1)
   case SNRF_KEY_RATE:
     {
       const uint8_t x = nrf24l01p_read_reg8(NRF24L01P_REG_RF_SETUP);
@@ -330,43 +620,42 @@ static void handle_get_msg(snrf_msg_t* msg)
       msg->u.compl.val = uint32_to_le(map[(x >> 3) & 5]);
       break ;
     }
+#endif
 
+#if (SNRF_CONFIG_NRF24L01P == 1)
   case SNRF_KEY_CHAN:
     {
       const uint8_t x = nrf24l01p_read_reg8(NRF24L01P_REG_RF_CH);
       msg->u.compl.val = uint32_to_le(x);
       break ;
     }
+#endif
 
   case SNRF_KEY_ADDR_WIDTH:
     {
-      static const uint8_t map[] =
-      {
-	0xff, /* invalid */
-	0, /* width = 3 */
-	1, /* width = 4 */
-	2 /* width = 5 */
-      };
-
-      const uint8_t x = nrf24l01p_read_reg8(NRF24L01P_REG_SETUP_AW);
-      msg->u.compl.val = uint32_to_le(map[x & 3]);
+      msg->u.compl.val = uint32_to_le(nrf_get_addr_width());
       break ;
     }
 
+#if (SNRF_CONFIG_NRF24L01P == 1)
   case SNRF_KEY_RX_ADDR:
     {
       nrf24l01p_read_reg40(NRF24L01P_REG_RX_ADDR_P0);
       msg->u.compl.val = uint32_to_le(buf_to_uint32(nrf24l01p_cmd_buf));
       break ;
     }
+#endif
 
+#if (SNRF_CONFIG_NRF24L01P == 1)
   case SNRF_KEY_TX_ADDR:
     {
       nrf24l01p_read_reg40(NRF24L01P_REG_TX_ADDR);
       msg->u.compl.val = uint32_to_le(buf_to_uint32(nrf24l01p_cmd_buf));
       break ;
     }
+#endif
 
+#if (SNRF_CONFIG_NRF24L01P == 1)
   case SNRF_KEY_TX_ACK:
     {
       const uint8_t x = nrf24l01p_read_reg8(NRF24L01P_REG_FEATURE);
@@ -374,10 +663,11 @@ static void handle_get_msg(snrf_msg_t* msg)
       else msg->u.compl.val = uint32_to_le(1);
       break ;
     }
+#endif
 
   case SNRF_KEY_PAYLOAD_WIDTH:
     {
-      const uint8_t x = nrf24l01p_read_reg8(NRF24L01P_REG_RX_PW_P0);
+      const uint8_t x = nrf_get_payload_width();
       msg->u.compl.val = uint32_to_le(x);
       break ;
     }
@@ -405,6 +695,8 @@ static void handle_payload_msg(snrf_msg_t* msg)
     return ;
   }
 
+#if (SNRF_CONFIG_NRF24L01P == 1)
+
   /* assumed was in rx mode */
   nrf24l01p_rx_to_tx();
 
@@ -413,6 +705,12 @@ static void handle_payload_msg(snrf_msg_t* msg)
   while (nrf24l01p_is_tx_irq() == 0) ;
 
   nrf24l01p_tx_to_rx();
+
+#elif (SNRF_CONFIG_NRF905 == 1)
+
+  nrf905_write_payload_zero(msg->u.payload.data);
+
+#endif
 
   /* fill completion status */
   MAKE_COMPL_ERROR(msg, SNRF_ERR_SUCCESS);
@@ -481,7 +779,7 @@ static uint8_t do_uart(void)
     if (snrf_state != SNRF_STATE_CONF)
     {
       snrf_state = SNRF_STATE_CONF;
-      nrf24l01p_set_powerdown();
+      nrf_set_powerdown_mode();
     }
 
     return 1;
@@ -510,58 +808,12 @@ int main(void)
   /* default state to conf */
   snrf_state = SNRF_STATE_CONF;
 
-  /* setup spi first */
-  spi_setup_master();
-  spi_set_sck_freq(SPI_SCK_FREQ_FOSC2);
+  nrf_setup();
+  nrf_set_powerdown_mode();
+  nrf_setup_rx_irq();
 
   uart_setup();
   uart_enable_rx_int();
-
-  /* nrf24l01p default configuration */
-
-  nrf24l01p_setup();
-
-  /* sparkfun usb serial board configuration */
-  /* NOTE: nrf24l01p_enable_crc8(); for nrf24l01p board */
-  /* nrf24l01p_enable_crc16(); */
-  nrf24l01p_disable_crc();
-  /* auto ack disabled */
-  /* auto retransmit disabled */
-  /* 4 bytes payload */
-  /* 1mbps, 0dbm */
-  /* nrf24l01p_set_rate(NRF24L01P_RATE_1MBPS); */
-  nrf24l01p_set_rate(NRF24L01P_RATE_2MBPS);
-  /* nrf24l01p_set_rate(NRF24L01P_RATE_250KBPS); */
-  /* channel 2 */
-  nrf24l01p_set_chan(2);
-  /* 5 bytes addr width */
-  /* nrf24l01p_set_addr_width(NRF24L01P_ADDR_WIDTH_5); */
-  nrf24l01p_set_addr_width(NRF24L01P_ADDR_WIDTH_3);
-  /* rx address */
-  nrf24l01p_cmd_buf[0] = 0xe7;
-  nrf24l01p_cmd_buf[1] = 0xe7;
-  nrf24l01p_cmd_buf[2] = 0xe7;
-  nrf24l01p_cmd_buf[3] = 0xe7;
-  nrf24l01p_cmd_buf[4] = 0xe7;
-  nrf24l01p_write_reg40(NRF24L01P_REG_RX_ADDR_P0);
-  /* tx address */
-  nrf24l01p_cmd_buf[0] = 0xe7;
-  nrf24l01p_cmd_buf[1] = 0xe7;
-  nrf24l01p_cmd_buf[2] = 0xe7;
-  nrf24l01p_cmd_buf[3] = 0xe7;
-  nrf24l01p_cmd_buf[4] = 0xe7;
-  nrf24l01p_write_reg40(NRF24L01P_REG_TX_ADDR);
-  /* enable tx no ack command */
-  nrf24l01p_enable_tx_noack();
-
-  nrf24l01p_set_powerdown();
-
-  /* setup interrupt on change. disable pullup. */
-  DDRB &= ~(1 << 1);
-  PORTB &= ~(1 << 1);
-  PCICR |= 1 << 0;
-  /* enable portb1 interrupt on change */
-  PCMSK0 |= 1 << 1;
 
   /* uart and pinchange int wakeup sources */
   set_sleep_mode(SLEEP_MODE_IDLE);
@@ -577,7 +829,7 @@ int main(void)
 
     /* disable pcint interrupt since we are already awake */
     /* and entering the handler perturbates the execution */
-    PCMSK0 &= ~(1 << 1);
+    nrf_disable_rx_irq();
 
     /* alternate do_{uart,nrf} to avoid starvation */
     while (1)
@@ -588,7 +840,7 @@ int main(void)
     }
 
     /* reenable pcint interrupts */
-    PCMSK0 |= 1 << 1;
+    nrf_enable_rx_irq();
 
     /* the following procedure is used to not miss interrupts */
     /* disable interrupts, check if something available */
@@ -600,7 +852,7 @@ int main(void)
 
     cli();
 
-    if ((uart_pos == sizeof(snrf_msg_t)) || nrf24l01p_is_rx_irq_noread())
+    if ((uart_pos == sizeof(snrf_msg_t)) || nrf_peek_rx_irq())
     {
       /* continue, do not sleep */
       sei();

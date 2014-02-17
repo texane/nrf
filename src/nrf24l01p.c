@@ -19,7 +19,9 @@
 #define NRF24L01P_IO_IRQ_PCICR_MASK (1 << 0)
 
 /* payload size, in bytes */
+#ifndef NRF24L01P_PAYLOAD_WIDTH
 #define NRF24L01P_PAYLOAD_WIDTH 16
+#endif
 
 /* local addresses */
 #define NRF24L01P_ADDR_WIDTH 3
