@@ -286,9 +286,107 @@ static inline uint8_t nrf_get_addr_width(void)
 
 #elif (SNRF_CONFIG_NRF905 == 1)
 
-  /* TODO */
+  return nrf905_get_tx_afw();
 
-  return 0;
+#endif
+}
+
+static inline void nrf_disable_crc(void)
+{
+#if (SNRF_CONFIG_NRF24L01P == 1)
+  nrf24l01p_disable_crc();
+#elif (SNRF_CONFIG_NRF905 == 1)
+  nrf905_set_crc_en(0);
+  nrf905_set_crc_mode(0);
+  nrf905_commit_config();
+#endif
+}
+
+static inline void nrf_enable_crc8(void)
+{
+#if (SNRF_CONFIG_NRF24L01P == 1)
+  nrf24l01p_enable_crc8();
+#elif (SNRF_CONFIG_NRF905 == 1)
+  nrf905_set_crc_en(1);
+  nrf905_set_crc_mode(0);
+  nrf905_commit_config();
+#endif
+}
+
+static inline void nrf_enable_crc16(void)
+{
+#if (SNRF_CONFIG_NRF24L01P == 1)
+  nrf24l01p_enable_crc16();
+#elif (SNRF_CONFIG_NRF905 == 1)
+  nrf905_set_crc_en(1);
+  nrf905_set_crc_mode(1);
+  nrf905_commit_config();
+#endif
+}
+
+static inline void nrf_set_rx_addr(uint8_t* x)
+{
+#if (SNRF_CONFIG_NRF24L01P == 1)
+  nrf24l01p_cmd_buf[0] = x[0];
+  nrf24l01p_cmd_buf[1] = x[1];
+  nrf24l01p_cmd_buf[2] = x[2];
+  nrf24l01p_cmd_buf[3] = x[3];
+  nrf24l01p_cmd_buf[4] = 0x00;
+  nrf24l01p_write_reg40(NRF24L01P_REG_RX_ADDR_P0);
+#elif (SNRF_CONFIG_NRF905 == 1)
+  nrf905_set_rx_addr(x, nrf905_get_rx_afw());
+  /* already commited */
+#endif
+}
+
+static inline void nrf_set_tx_addr(uint8_t* x)
+{
+#if (SNRF_CONFIG_NRF24L01P == 1)
+  nrf24l01p_cmd_buf[0] = x[0];
+  nrf24l01p_cmd_buf[1] = x[1];
+  nrf24l01p_cmd_buf[2] = x[2];
+  nrf24l01p_cmd_buf[3] = x[3];
+  nrf24l01p_cmd_buf[4] = 0x00;
+  nrf24l01p_write_reg40(NRF24L01P_REG_TX_ADDR);
+#elif (SNRF_CONFIG_NRF905 == 1)
+  nrf905_set_tx_addr(x, nrf905_get_tx_afw());
+  /* already commited */
+#endif
+}
+
+static inline void nrf_disable_tx_ack(void)
+{
+#if (SNRF_CONFIG_NRF24L01P == 1)
+  nrf24l01p_enable_tx_noack();
+#elif (SNRF_CONFIG_NRF905 == 1)
+  nrf905_set_auto_retran(0);
+  nrf905_commit_config();
+#endif
+}
+
+static inline void nrf_enable_tx_ack(void)
+{
+#if (SNRF_CONFIG_NRF24L01P == 1)
+  nrf24l01p_disable_tx_noack();
+#elif (SNRF_CONFIG_NRF905 == 1)
+  nrf905_set_auto_retran(1);
+  nrf905_commit_config();
+#endif
+}
+
+static inline uint8_t nrf_get_tx_ack(void)
+{
+  /* return 0 if disabled, non zero otherwise */
+
+#if (SNRF_CONFIG_NRF24L01P == 1)
+
+  const uint8_t x = nrf24l01p_read_reg8(NRF24L01P_REG_FEATURE);
+  if (x & (1 << 0)) return 0;
+  else return 1;
+
+#elif (SNRF_CONFIG_NRF905 == 1)
+
+  return nrf905_get_auto_retran();
 
 #endif
 }
@@ -497,14 +595,12 @@ static void handle_set_msg(snrf_msg_t* msg)
       break ;
     }
 
-#if (SNRF_CONFIG_NRF24L01P == 1)
   case SNRF_KEY_CRC:
-    if (val == SNRF_CRC_DISABLED) nrf24l01p_disable_crc();
-    else if (val == SNRF_CRC_8) nrf24l01p_enable_crc8();
-    else if (val == SNRF_CRC_16) nrf24l01p_enable_crc16();
+    if (val == SNRF_CRC_DISABLED) nrf_disable_crc();
+    else if (val == SNRF_CRC_8) nrf_enable_crc8();
+    else if (val == SNRF_CRC_16) nrf_enable_crc16();
     else MAKE_COMPL_ERROR(msg, SNRF_ERR_VAL);
     break ;
-#endif
 
 #if (SNRF_CONFIG_NRF24L01P == 1)
   case SNRF_KEY_RATE:
@@ -533,37 +629,21 @@ static void handle_set_msg(snrf_msg_t* msg)
       break ;
     }
 
-#if (SNRF_CONFIG_NRF24L01P == 1)
   case SNRF_KEY_RX_ADDR:
-    nrf24l01p_cmd_buf[0] = (uint8_t)((val >> 24) & 0xff);
-    nrf24l01p_cmd_buf[1] = (uint8_t)((val >> 16) & 0xff);
-    nrf24l01p_cmd_buf[2] = (uint8_t)((val >> 8) & 0xff);
-    nrf24l01p_cmd_buf[3] = (uint8_t)((val >> 0) & 0xff);
-    nrf24l01p_cmd_buf[4] = 0x00;
-    nrf24l01p_write_reg40(NRF24L01P_REG_RX_ADDR_P0);
+    nrf_set_rx_addr((uint8_t*)&msg->u.set.val);
     break ;
-#endif
 
-#if (SNRF_CONFIG_NRF24L01P == 1)
   case SNRF_KEY_TX_ADDR:
-    nrf24l01p_cmd_buf[0] = (uint8_t)((val >> 24) & 0xff);
-    nrf24l01p_cmd_buf[1] = (uint8_t)((val >> 16) & 0xff);
-    nrf24l01p_cmd_buf[2] = (uint8_t)((val >> 8) & 0xff);
-    nrf24l01p_cmd_buf[3] = (uint8_t)((val >> 0) & 0xff);
-    nrf24l01p_cmd_buf[4] = 0x00;
-    nrf24l01p_write_reg40(NRF24L01P_REG_TX_ADDR);
+    nrf_set_tx_addr((uint8_t*)&msg->u.set.val);
     break ;
-#endif
 
-#if (SNRF_CONFIG_NRF24L01P == 1)
   case SNRF_KEY_TX_ACK:
     /* disable tx ack */
-    if (val == 0) nrf24l01p_enable_tx_noack();
+    if (val == 0) nrf_disable_tx_ack();
     /* enable tx ack */
-    else if (val == 1) nrf24l01p_disable_tx_noack();
+    else if (val == 1) nrf_enable_tx_ack();
     else MAKE_COMPL_ERROR(msg, SNRF_ERR_VAL);
     break ;
-#endif
 
   case SNRF_KEY_PAYLOAD_WIDTH:
     if (val > SNRF_MAX_PAYLOAD_WIDTH) MAKE_COMPL_ERROR(msg, SNRF_ERR_VAL);
@@ -655,15 +735,9 @@ static void handle_get_msg(snrf_msg_t* msg)
     }
 #endif
 
-#if (SNRF_CONFIG_NRF24L01P == 1)
   case SNRF_KEY_TX_ACK:
-    {
-      const uint8_t x = nrf24l01p_read_reg8(NRF24L01P_REG_FEATURE);
-      if (x & (1 << 0)) msg->u.compl.val = uint32_to_le(0);
-      else msg->u.compl.val = uint32_to_le(1);
-      break ;
-    }
-#endif
+    msg->u.compl.val = uint32_to_le(nrf_get_tx_ack());
+    break ;
 
   case SNRF_KEY_PAYLOAD_WIDTH:
     {

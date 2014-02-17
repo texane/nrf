@@ -389,6 +389,15 @@ static void nrf905_clear_set_config(uint8_t i, uint8_t j, uint8_t w, uint8_t x)
   nrf905_config[i] |= x << j;
 }
 
+static uint8_t nrf905_read_config(uint8_t i, uint8_t j, uint8_t w)
+{
+  /* i the byte offset */
+  /* j the bit offset */
+  /* w the width */
+
+  return (nrf905_config[i] >> j) & ~((1 << w) - 1);
+}
+
 static void nrf905_set_ch_no(uint16_t x)
 {
   nrf905_clear_set_config(0, 0, 8, x & 0xff);
@@ -415,14 +424,29 @@ static void nrf905_set_auto_retran(uint8_t x)
   nrf905_clear_set_config(1, 5, 1, x);
 }
 
+static uint8_t nrf905_get_auto_retran(void)
+{
+  return nrf905_read_config(1, 5, 1);
+}
+
 static void nrf905_set_rx_afw(uint8_t x)
 {
   nrf905_clear_set_config(2, 0, 3, x);
 }
 
+static uint8_t nrf905_get_rx_afw(void)
+{
+  return nrf905_read_config(2, 0, 3);
+}
+
 static void nrf905_set_tx_afw(uint8_t x)
 {
   nrf905_clear_set_config(2, 4, 3, x);
+}
+
+static uint8_t nrf905_get_tx_afw(void)
+{
+  return nrf905_read_config(2, 4, 3);
 }
 
 static void nrf905_set_rx_pw(uint8_t x)
