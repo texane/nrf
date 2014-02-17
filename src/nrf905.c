@@ -178,9 +178,17 @@ static uint8_t nrf905_is_am(void)
 #define NRF905_IO_DR_MASK (1 << 2)
 #define NRF905_IO_DR_DDR DDRD
 #define NRF905_IO_DR_PIN PIND
+#define NRF905_IO_DR_PORT PORTD
 #define NRF905_IO_AM_MASK (1 << 5)
 #define NRF905_IO_AM_DDR DDRD
 #define NRF905_IO_AM_PIN PIND
+
+/* rx irq is dr. portd2 is pcint18, pcint mask 2 */
+#define NRF905_IO_IRQ_DDR NRF905_IO_DR_DDR
+#define NRF905_IO_IRQ_PORT NRF905_IO_DR_PORT
+#define NRF905_IO_IRQ_MASK NRF905_IO_DR_MASK
+#define NRF905_IO_IRQ_PCICR_MASK (1 << 2)
+#define NRF905_IO_IRQ_PCMSK PCMSK2
 
 static inline void spi_setup_cs(void)
 {
@@ -596,12 +604,12 @@ static void nrf905_disable_trxx(void)
 
 /* exported */
 
-static void nrf905_write_payload(void)
+static void nrf905_write_payload_zero(uint8_t* buf)
 {
   /* writing the payload must be done with txr_ce = 0 */
   nrf905_clear_trx();
 
-  nrf905_cmd_write(NRF905_CMD_WTP, nrf905_payload_buf, nrf905_payload_width);
+  nrf905_cmd_write(NRF905_CMD_WTP, buf, nrf905_payload_width);
 
   /* send the packet */
   nrf905_set_tx();
@@ -613,11 +621,20 @@ static void nrf905_write_payload(void)
   nrf905_set_trx();
 }
 
-static void nrf905_read_payload(void)
+static void nrf905_write_payload(void)
+{
+  nrf905_write_payload_zero(nrf905_payload_buf);
+}
+
+static void nrf905_read_payload_zero(uint8_t* p)
 {
   /* dr and am set low after payload read */
+  nrf905_cmd_read(NRF905_CMD_RRP, p, nrf905_payload_width);
+}
 
-  nrf905_cmd_read(NRF905_CMD_RRP, nrf905_payload_buf, nrf905_payload_width);
+static void nrf905_read_payload(void)
+{
+  nrf905_read_payload_zero(nrf905_payload_buf);
 }
 
 static void nrf905_set_tx_addr(const uint8_t* a, uint8_t w)
