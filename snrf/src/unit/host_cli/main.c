@@ -59,6 +59,7 @@ static uint8_t str_to_key(const char* s)
   IF_STREQ_RETURN(s, "tx_ack", TX_ACK);
   IF_STREQ_RETURN(s, "payload_width", PAYLOAD_WIDTH);
   IF_STREQ_RETURN(s, "uart_flags", UART_FLAGS);
+  IF_STREQ_RETURN(s, "nrf_chipset", NRF_CHIPSET);
 
   return (uint8_t)-1;
 }
@@ -207,6 +208,13 @@ static void print_keyval(uint8_t key, uint32_t val)
     key_str = "uart_flags";
     sprintf(val_buf, "0x%02x", val);
     val_str = val_buf;
+    break ;
+
+  case SNRF_KEY_NRF_CHIPSET:
+    key_str = "nrf_chipset";
+    if (val == SNRF_CHIPSET_NRF24L01P) val_str = "nrf24l01p";
+    else if (val == SNRF_CHIPSET_NRF905) val_str = "nrf905";
+    else val_str = "invalid";
     break ;
 
   default:

@@ -220,7 +220,7 @@ static void handle_set_msg(snrf_msg_t* msg)
     else MAKE_COMPL_ERROR(msg, SNRF_ERR_VAL);
     break ;
 
-#if (SNRF_CONFIG_NRF24L01P == 1)
+#if (NRF_CONFIG_NRF24L01P == 1)
   case SNRF_KEY_RATE:
     {
       static const uint8_t map[] =
@@ -242,7 +242,7 @@ static void handle_set_msg(snrf_msg_t* msg)
     }
 #endif
 
-#if (SNRF_CONFIG_NRF24L01P == 1)
+#if (NRF_CONFIG_NRF24L01P == 1)
   case SNRF_KEY_CHAN:
     nrf24l01p_set_chan((uint8_t)val);
     break ;
@@ -305,7 +305,7 @@ static void handle_get_msg(snrf_msg_t* msg)
 
   case SNRF_KEY_RATE:
     {
-#if (SNRF_CONFIG_NRF24L01P == 1)
+#if (NRF_CONFIG_NRF24L01P == 1)
       const uint8_t x = nrf24l01p_read_reg8(NRF24L01P_REG_RF_SETUP);
       static const uint8_t map[] =
       {
@@ -316,13 +316,13 @@ static void handle_get_msg(snrf_msg_t* msg)
 	NRF24L01P_RATE_250KBPS
       };
       msg->u.compl.val = uint32_to_le(map[(x >> 3) & 5]);
-#elif (SNRF_CONFIG_NRF905 == 1)
+#elif (NRF_CONFIG_NRF905 == 1)
       msg->u.compl.val = uint32_to_le(SNRF_RATE_50KBPS);
 #endif
       break ;
     }
 
-#if (SNRF_CONFIG_NRF24L01P == 1)
+#if (NRF_CONFIG_NRF24L01P == 1)
   case SNRF_KEY_CHAN:
     {
       const uint8_t x = nrf24l01p_read_reg8(NRF24L01P_REG_RF_CH);
@@ -355,6 +355,14 @@ static void handle_get_msg(snrf_msg_t* msg)
     msg->u.compl.val = uint32_to_le((uint32_t)uart_flags);
     break ;
 
+  case SNRF_KEY_NRF_CHIPSET:
+#if (NRF_CONFIG_NRF24L01P == 1)
+    msg->u.compl.val = uint32_to_le(SNRF_CHIPSET_NRF24L01P);
+#else
+    msg->u.compl.val = uint32_to_le(SNRF_CHIPSET_NRF905);
+#endif
+    break ;
+
   default:
     MAKE_COMPL_ERROR(msg, SNRF_ERR_KEY);
     break ;
@@ -372,7 +380,7 @@ static void handle_payload_msg(snrf_msg_t* msg)
     return ;
   }
 
-#if (SNRF_CONFIG_NRF24L01P == 1)
+#if (NRF_CONFIG_NRF24L01P == 1)
 
   /* assumed was in rx mode */
   nrf24l01p_rx_to_tx();
@@ -383,7 +391,7 @@ static void handle_payload_msg(snrf_msg_t* msg)
 
   nrf24l01p_tx_to_rx();
 
-#elif (SNRF_CONFIG_NRF905 == 1)
+#elif (NRF_CONFIG_NRF905 == 1)
 
   nrf905_write_payload_zero(msg->u.payload.data);
 
