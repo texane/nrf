@@ -194,7 +194,7 @@ static void nrf_read_payload_zero(uint8_t* p)
 #endif
 }
 
-static inline void nrf_send_payload(uint8_t* p)
+static inline void nrf_send_payload_zero(uint8_t* p)
 {
  /* NOTE: enter and leave in powerdown mode */
 
