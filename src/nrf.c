@@ -181,6 +181,19 @@ static inline uint8_t nrf_read_payload(uint8_t** buf)
 #endif
 }
 
+static void nrf_read_payload_zero(uint8_t* p)
+{
+#if (NRF_CONFIG_NRF24L01P == 1)
+
+  nrf24l01p_read_rx_zero(p);
+
+#elif (NRF_CONFIG_NRF905 == 1)
+
+  nrf905_read_payload_zero(p);
+
+#endif
+}
+
 static inline void nrf_send_payload(uint8_t* p)
 {
  /* NOTE: enter and leave in powerdown mode */
