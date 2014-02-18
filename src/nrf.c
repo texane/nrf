@@ -424,3 +424,37 @@ static inline uint8_t nrf_get_tx_ack(void)
 
 #endif
 }
+
+static inline void nrf_get_tx_addr(uint8_t* x)
+{
+  const uint8_t n = nrf_get_addr_width();
+
+#if (NRF_CONFIG_NRF24L01P == 1)
+
+  uint8_t i;
+  nrf24l01p_read_reg40(NRF24L01P_REG_TX_ADDR);
+  for (i = 0; i != n; ++i) x[i] = nrf24l01p_cmd_buf[i];
+
+#elif (NRF_CONFIG_NRF905 == 1)
+
+  nrf905_get_tx_addr(x, n);
+
+#endif
+}
+
+static inline void nrf_get_rx_addr(uint8_t* x)
+{
+  const uint8_t n = nrf_get_addr_width();
+
+#if (NRF_CONFIG_NRF24L01P == 1)
+
+  uint8_t i;
+  nrf24l01p_read_reg40(NRF24L01P_REG_RX_ADDR_P0);
+  for (i = 0; i != n; ++i) x[i] = nrf24l01p_cmd_buf[i];
+
+#elif (NRF_CONFIG_NRF905 == 1)
+
+  nrf905_get_rx_addr(x, n);
+
+#endif
+}

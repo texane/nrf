@@ -332,45 +332,28 @@ static void handle_get_msg(snrf_msg_t* msg)
 #endif
 
   case SNRF_KEY_ADDR_WIDTH:
-    {
-      msg->u.compl.val = uint32_to_le(nrf_get_addr_width());
-      break ;
-    }
+    msg->u.compl.val = uint32_to_le(nrf_get_addr_width());
+    break ;
 
-#if (SNRF_CONFIG_NRF24L01P == 1)
   case SNRF_KEY_RX_ADDR:
-    {
-      nrf24l01p_read_reg40(NRF24L01P_REG_RX_ADDR_P0);
-      msg->u.compl.val = uint32_to_le(buf_to_uint32(nrf24l01p_cmd_buf));
-      break ;
-    }
-#endif
+    nrf_get_rx_addr((uint8_t*)&msg->u.compl.val);
+    break ;
 
-#if (SNRF_CONFIG_NRF24L01P == 1)
   case SNRF_KEY_TX_ADDR:
-    {
-      nrf24l01p_read_reg40(NRF24L01P_REG_TX_ADDR);
-      msg->u.compl.val = uint32_to_le(buf_to_uint32(nrf24l01p_cmd_buf));
-      break ;
-    }
-#endif
+    nrf_get_tx_addr((uint8_t*)&msg->u.compl.val);
+    break ;
 
   case SNRF_KEY_TX_ACK:
     msg->u.compl.val = uint32_to_le(nrf_get_tx_ack());
     break ;
 
   case SNRF_KEY_PAYLOAD_WIDTH:
-    {
-      const uint8_t x = nrf_get_payload_width();
-      msg->u.compl.val = uint32_to_le(x);
-      break ;
-    }
+    msg->u.compl.val = uint32_to_le(nrf_get_payload_width());
+    break ;
 
   case SNRF_KEY_UART_FLAGS:
-    {
-      msg->u.compl.val = uint32_to_le((uint32_t)uart_flags);
-      break ;
-    }
+    msg->u.compl.val = uint32_to_le((uint32_t)uart_flags);
+    break ;
 
   default:
     MAKE_COMPL_ERROR(msg, SNRF_ERR_KEY);

@@ -686,6 +686,13 @@ static void nrf905_set_tx_addr(const uint8_t* a, uint8_t w)
   nrf905_cmd_wta(a, w);
 }
 
+static void nrf905_get_tx_addr(uint8_t* x, uint8_t n)
+{
+  /* x the address buffer, at least n bytes */
+
+  nrf905_cmd_rta(x, n);
+}
+
 static void nrf905_set_rx_addr(const uint8_t* a, uint8_t w)
 {
   /* config[32:63] */
@@ -694,6 +701,13 @@ static void nrf905_set_rx_addr(const uint8_t* a, uint8_t w)
     nrf905_clear_set_config(5 + i, 0, 8, a[i]);
   nrf905_set_rx_afw(w);
   nrf905_cmd_wc();
+}
+
+static void nrf905_get_rx_addr(uint8_t* x, uint8_t n)
+{
+  /* x the address buffer, at least n bytes */
+  uint8_t i;
+  for (i = 0; i != n; ++i) x[i] = nrf905_read_config(5 + i, 0, 8);
 }
 
 static void nrf905_setup(void)
