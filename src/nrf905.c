@@ -395,7 +395,7 @@ static uint8_t nrf905_read_config(uint8_t i, uint8_t j, uint8_t w)
   /* j the bit offset */
   /* w the width */
 
-  return (nrf905_config[i] >> j) & ~((1 << w) - 1);
+  return (nrf905_config[i] >> j) & ((1 << w) - 1);
 }
 
 static void nrf905_set_ch_no(uint16_t x)
@@ -461,6 +461,11 @@ static void nrf905_set_tx_pw(uint8_t x)
   nrf905_payload_width = x;
 }
 
+static uint8_t nrf905_get_payload_width(void)
+{
+  return nrf905_read_config(4, 0, 6);
+}
+
 static void nrf905_set_payload_width(uint8_t x)
 {
   nrf905_set_rx_pw(x);
@@ -490,6 +495,16 @@ static void nrf905_set_crc_en(uint8_t x)
 static void nrf905_set_crc_mode(uint8_t x)
 {
   nrf905_clear_set_config(9, 7, 1, x);
+}
+
+static uint8_t nrf905_get_crc_en(void)
+{
+  return nrf905_read_config(9, 6, 1);
+}
+
+static uint8_t nrf905_get_crc_mode(void)
+{
+  return nrf905_read_config(9, 7, 1);
 }
 
 /* rf channel */

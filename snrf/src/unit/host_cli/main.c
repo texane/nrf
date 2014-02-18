@@ -92,16 +92,11 @@ static int str_to_keyval
     break ;
 
   case SNRF_KEY_RATE:
-    if (strcmp(val_str, "250KBPS") == 0) *val = SNRF_RATE_250KBPS;
+    if (strcmp(val_str, "50KBPS") == 0) *val = SNRF_RATE_50KBPS;
+    else if (strcmp(val_str, "250KBPS") == 0) *val = SNRF_RATE_250KBPS;
     else if (strcmp(val_str, "1MBPS") == 0) *val = SNRF_RATE_1MBPS;
     else if (strcmp(val_str, "2MBPS") == 0) *val = SNRF_RATE_2MBPS;
     else if (is_digit(val_str)) goto case_digit;
-    else goto on_error;
-    break ;
-
-  case SNRF_KEY_ADDR_WIDTH:
-    if (strcmp(val_str, "3") == 0) *val = SNRF_ADDR_WIDTH_3;
-    else if (strcmp(val_str, "4") == 0) *val = SNRF_ADDR_WIDTH_4;
     else goto on_error;
     break ;
 
@@ -113,6 +108,7 @@ static int str_to_keyval
     break ;
 
   case_digit:
+  case SNRF_KEY_ADDR_WIDTH:
   case SNRF_KEY_INFO:
   case SNRF_KEY_CHAN:
   case SNRF_KEY_RX_ADDR:
@@ -163,7 +159,8 @@ static void print_keyval(uint8_t key, uint32_t val)
 
   case SNRF_KEY_RATE:
     key_str = "rate";
-    if (val == SNRF_RATE_250KBPS) val_str = "250KBPS";
+    if (val == SNRF_RATE_50KBPS) val_str = "50KBPS";
+    else if (val == SNRF_RATE_250KBPS) val_str = "250KBPS";
     else if (val == SNRF_RATE_1MBPS) val_str = "1MBPS";
     else if (val == SNRF_RATE_2MBPS) val_str = "2MBPS";
     else val_str = "invalid";
@@ -177,9 +174,8 @@ static void print_keyval(uint8_t key, uint32_t val)
 
   case SNRF_KEY_ADDR_WIDTH:
     key_str = "addr_width";
-    if (val == SNRF_ADDR_WIDTH_3) val_str = "3";
-    else if (val == SNRF_ADDR_WIDTH_4) val_str = "4";
-    else val_str = "invalid";
+    sprintf(val_buf, "%u", val);
+    val_str = val_buf;
     break ;
 
   case SNRF_KEY_RX_ADDR:

@@ -230,7 +230,7 @@ static inline uint8_t nrf_get_payload_width(void)
 
 #elif (SNRF_CONFIG_NRF905 == 1)
 
-  return nrf905_payload_width;
+  return nrf905_get_payload_width();
 
 #endif
 }
@@ -248,15 +248,19 @@ static inline uint8_t nrf_set_addr_width(uint8_t x)
     NRF24L01P_ADDR_WIDTH_5
   };
 
+  if (x < 3) return (uint8_t)-1;
+  x -= 3;
+
 #define ARRAY_COUNT(__a) (sizeof(__a) / sizeof((__a)[0]))
-  if (x >= ARRAY_COUNT(map)) return -1;
+  if (x >= ARRAY_COUNT(map)) return (uint8_t)-1;
 
   /* x in NRF24L01P_ADDR_WIDTH_xxx */
   nrf24l01p_set_addr_width(map[x]);
 
 #elif (SNRF_CONFIG_NRF905 == 1)
 
-  /* x in bytes */
+  if ((x < 1) || (x > 4)) return (uint8_t)-1;
+
   nrf905_set_rx_afw(x);
   nrf905_set_tx_afw(x);
   nrf905_commit_config();
@@ -272,17 +276,7 @@ static inline uint8_t nrf_get_addr_width(void)
 
 #if (SNRF_CONFIG_NRF24L01P == 1)
 
-  static const uint8_t map[] =
-  {
-    0xff, /* invalid */
-    0, /* width = 3 */
-    1, /* width = 4 */
-    2 /* width = 5 */
-  };
-
-  const uint8_t x = nrf24l01p_read_reg8(NRF24L01P_REG_SETUP_AW);
-
-  return map[x & 3];
+  return 3 + nrf24l01p_read_reg8(NRF24L01P_REG_SETUP_AW);
 
 #elif (SNRF_CONFIG_NRF905 == 1)
 
@@ -294,83 +288,130 @@ static inline uint8_t nrf_get_addr_width(void)
 static inline void nrf_disable_crc(void)
 {
 #if (SNRF_CONFIG_NRF24L01P == 1)
+
   nrf24l01p_disable_crc();
+
 #elif (SNRF_CONFIG_NRF905 == 1)
+
   nrf905_set_crc_en(0);
   nrf905_set_crc_mode(0);
   nrf905_commit_config();
+
 #endif
 }
 
 static inline void nrf_enable_crc8(void)
 {
 #if (SNRF_CONFIG_NRF24L01P == 1)
+
   nrf24l01p_enable_crc8();
+
 #elif (SNRF_CONFIG_NRF905 == 1)
+
   nrf905_set_crc_en(1);
   nrf905_set_crc_mode(0);
   nrf905_commit_config();
+
 #endif
 }
 
 static inline void nrf_enable_crc16(void)
 {
 #if (SNRF_CONFIG_NRF24L01P == 1)
+
   nrf24l01p_enable_crc16();
+
 #elif (SNRF_CONFIG_NRF905 == 1)
+
   nrf905_set_crc_en(1);
   nrf905_set_crc_mode(1);
   nrf905_commit_config();
+
+#endif
+}
+
+static uint8_t nrf_get_crc(void)
+{
+  /* return the crc size in bytes */
+#if (SNRF_CONFIG_NRF24L01P == 1)
+
+  const uint8_t x = nrf24l01p_read_reg8(NRF24L01P_REG_CONFIG);
+  if ((x & (1 << 3)) == 0) return 0;
+  else if ((x & (1 << 2)) == 0) return 1;
+  else return 2;
+
+#elif (SNRF_CONFIG_NRF905 == 1)
+
+  if (nrf905_get_crc_en() == 0) return 0;
+  if (nrf905_get_crc_mode() == 0) return 1;
+  return 2;
+
 #endif
 }
 
 static inline void nrf_set_rx_addr(uint8_t* x)
 {
 #if (SNRF_CONFIG_NRF24L01P == 1)
+
   nrf24l01p_cmd_buf[0] = x[0];
   nrf24l01p_cmd_buf[1] = x[1];
   nrf24l01p_cmd_buf[2] = x[2];
   nrf24l01p_cmd_buf[3] = x[3];
   nrf24l01p_cmd_buf[4] = 0x00;
   nrf24l01p_write_reg40(NRF24L01P_REG_RX_ADDR_P0);
+
 #elif (SNRF_CONFIG_NRF905 == 1)
+
   nrf905_set_rx_addr(x, nrf905_get_rx_afw());
   /* already commited */
+
 #endif
 }
 
 static inline void nrf_set_tx_addr(uint8_t* x)
 {
 #if (SNRF_CONFIG_NRF24L01P == 1)
+
   nrf24l01p_cmd_buf[0] = x[0];
   nrf24l01p_cmd_buf[1] = x[1];
   nrf24l01p_cmd_buf[2] = x[2];
   nrf24l01p_cmd_buf[3] = x[3];
   nrf24l01p_cmd_buf[4] = 0x00;
   nrf24l01p_write_reg40(NRF24L01P_REG_TX_ADDR);
+
 #elif (SNRF_CONFIG_NRF905 == 1)
+
   nrf905_set_tx_addr(x, nrf905_get_tx_afw());
   /* already commited */
+
 #endif
 }
 
 static inline void nrf_disable_tx_ack(void)
 {
 #if (SNRF_CONFIG_NRF24L01P == 1)
+
   nrf24l01p_enable_tx_noack();
+
 #elif (SNRF_CONFIG_NRF905 == 1)
+
   nrf905_set_auto_retran(0);
   nrf905_commit_config();
+
 #endif
 }
 
 static inline void nrf_enable_tx_ack(void)
 {
 #if (SNRF_CONFIG_NRF24L01P == 1)
+
   nrf24l01p_disable_tx_noack();
+
 #elif (SNRF_CONFIG_NRF905 == 1)
+
   nrf905_set_auto_retran(1);
   nrf905_commit_config();
+
 #endif
 }
 
@@ -607,12 +648,19 @@ static void handle_set_msg(snrf_msg_t* msg)
     {
       static const uint8_t map[] =
       {
+	NRF24L01P_RATE_250KBPS, /* invalid */
 	NRF24L01P_RATE_250KBPS,
 	NRF24L01P_RATE_1MBPS,
 	NRF24L01P_RATE_2MBPS
       };
-      if (val >= ARRAY_COUNT(map)) MAKE_COMPL_ERROR(msg, SNRF_ERR_VAL);
-      else nrf24l01p_set_rate(map[val]);
+      if ((val == 0) || (val >= ARRAY_COUNT(map)))
+      {
+	MAKE_COMPL_ERROR(msg, SNRF_ERR_VAL);
+      }
+      else
+      {
+	nrf24l01p_set_rate(map[val]);
+      }
       break ;
     }
 #endif
@@ -674,20 +722,13 @@ static void handle_get_msg(snrf_msg_t* msg)
     msg->u.compl.val = uint32_to_le(snrf_state);
     break ;
 
-#if (SNRF_CONFIG_NRF24L01P == 1)
   case SNRF_KEY_CRC:
-    {
-      const uint8_t x = nrf24l01p_read_reg8(NRF24L01P_REG_CONFIG);
-      if ((x & (1 << 3)) == 0) msg->u.compl.val = uint32_to_le(0);
-      else if ((x & (1 << 2)) == 0) msg->u.compl.val = uint32_to_le(1);
-      else msg->u.compl.val = uint32_to_le(2);
-      break ;
-    }
-#endif
+    msg->u.compl.val = uint32_to_le(nrf_get_crc());
+    break ;
 
-#if (SNRF_CONFIG_NRF24L01P == 1)
   case SNRF_KEY_RATE:
     {
+#if (SNRF_CONFIG_NRF24L01P == 1)
       const uint8_t x = nrf24l01p_read_reg8(NRF24L01P_REG_RF_SETUP);
       static const uint8_t map[] =
       {
@@ -698,9 +739,11 @@ static void handle_get_msg(snrf_msg_t* msg)
 	NRF24L01P_RATE_250KBPS
       };
       msg->u.compl.val = uint32_to_le(map[(x >> 3) & 5]);
+#elif (SNRF_CONFIG_NRF905 == 1)
+      msg->u.compl.val = uint32_to_le(SNRF_RATE_50KBPS);
+#endif
       break ;
     }
-#endif
 
 #if (SNRF_CONFIG_NRF24L01P == 1)
   case SNRF_KEY_CHAN:
