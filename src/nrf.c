@@ -2,7 +2,6 @@
 
 #include <avr/io.h>
 
-#define NRF_CONFIG_NRF905 1
 
 #if (NRF_CONFIG_NRF24L01P == 1)
 #include "./nrf24l01p.c"
