@@ -1,5 +1,10 @@
-NORDIC radio frequency core repository, plus unit testing
-programs. For now, only nr24l01p supported (maybe nrf2401a).
+NORDIC radio frequency core repository, plus unit testing programs.
+
+nrf24l01p and nrf905 are currently supported. There is an implem for
+nrf2401a, not tested.
+
+Also, there is a set of functions to program NRF chipsets independtly
+of the actual hardware.
 
 src: source common to all projects (nrfxxx.c, spi, uart)
 snrf: serial to nrf
