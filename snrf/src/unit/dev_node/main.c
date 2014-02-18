@@ -2,8 +2,10 @@
 #include <avr/io.h>
 #include <avr/sleep.h>
 #include <avr/interrupt.h>
-#include "../../../../src/spi.c"
-#include "../../../../src/nrf24l01p.c"
+
+#define NRF_CONFIG_NRF905 1
+#include "../../../../src/nrf.c"
+
 
 /* timer */
 
@@ -54,13 +56,14 @@ static uint8_t tx_pattern = 0x00;
 
 static void do_tx(void)
 {
-  static uint8_t tx_buf[NRF24L01P_PAYLOAD_WIDTH];
-
+#define PAYLOAD_WIDTH 16
+  static uint8_t tx_buf[PAYLOAD_WIDTH];
   uint8_t i;
 
-  for (i = 0; i < NRF24L01P_PAYLOAD_WIDTH; ++i)
-    tx_buf[i] = tx_pattern;
+  for (i = 0; i < PAYLOAD_WIDTH; ++i) tx_buf[i] = tx_pattern;
   ++tx_pattern;
+
+#if (NRF_CONFIG_NRF24L01P == 1)
 
   /* assumed was in rx mode */
   nrf24l01p_rx_to_tx();
@@ -70,6 +73,13 @@ static void do_tx(void)
   while (nrf24l01p_is_tx_irq() == 0) ;
 
   nrf24l01p_tx_to_rx();
+
+#elif (NRF_CONFIG_NRF905 == 1)
+
+  nrf905_write_payload_zero(tx_buf);
+  nrf905_set_rx();
+
+#endif
 }
 
 static uint8_t nibble_to_uint8(uint8_t c)
@@ -87,20 +97,22 @@ static uint8_t do_rx(void)
 {
   /* return 0 if no msg processed, 1 otherwise */
 
-  if (nrf24l01p_is_rx_irq() == 0) return 0;
+  uint8_t* buf;
 
-  nrf24l01p_read_rx();
+  if (nrf_get_rx_irq() == 0) return 0;
+
+  nrf_read_payload(&buf);
 
   /* set pattern */
-  if (nrf24l01p_cmd_buf[0] == '0')
+  if (buf[0] == '0')
   {
     /* set tx pattern */
-    tx_pattern = hex_to_uint8(nrf24l01p_cmd_buf + 1);
+    tx_pattern = hex_to_uint8(buf + 1);
   }
-  else if (nrf24l01p_cmd_buf[0] == '1')
+  else if (buf[0] == '1')
   {
     /* set tx frequency */
-    const uint8_t x = hex_to_uint8(nrf24l01p_cmd_buf + 1);
+    const uint8_t x = hex_to_uint8(buf + 1);
     if (x == 0)
     {
       timer_disable();
@@ -118,64 +130,24 @@ static uint8_t do_rx(void)
   return 1;
 }
 
-ISR(PCINT0_vect)
+ISR(PCINT2_vect)
 {
-  /* pin change 0 interrupt handler */
+  /* pin change 2 interrupt handler */
   /* do not handle here, otherwise compl */
   /* msg may get mixed with nrf payload */
 }
 
 int main(void)
 {
-  /* setup spi first */
-  spi_setup_master();
-  spi_set_sck_freq(SPI_SCK_FREQ_FOSC2);
+  nrf_setup();
+  nrf_set_powerdown_mode();
 
-  /* nrf24l01p default configuration */
-
-  nrf24l01p_setup();
-
-  /* sparkfun usb serial board configuration */
-  /* NOTE: nrf24l01p_enable_crc8(); for nrf24l01p board */
-  /* nrf24l01p_enable_crc16(); */
-  nrf24l01p_disable_crc();
-  /* auto ack disabled */
-  /* auto retransmit disabled */
-  /* 4 bytes payload */
-  /* 1mbps, 0dbm */
-  /* nrf24l01p_set_rate(NRF24L01P_RATE_1MBPS); */
-  nrf24l01p_set_rate(NRF24L01P_RATE_2MBPS);
-  /* nrf24l01p_set_rate(NRF24L01P_RATE_250KBPS); */
-  /* channel 2 */
-  nrf24l01p_set_chan(2);
-  /* 5 bytes addr width */
-  /* nrf24l01p_set_addr_width(NRF24L01P_ADDR_WIDTH_5); */
-  nrf24l01p_set_addr_width(NRF24L01P_ADDR_WIDTH_4);
-  /* rx address */
-  nrf24l01p_cmd_buf[0] = 0xe7;
-  nrf24l01p_cmd_buf[1] = 0xe7;
-  nrf24l01p_cmd_buf[2] = 0xe7;
-  nrf24l01p_cmd_buf[3] = 0xe7;
-  nrf24l01p_cmd_buf[4] = 0xe7;
-  nrf24l01p_write_reg40(NRF24L01P_REG_RX_ADDR_P0);
-  /* tx address */
-  nrf24l01p_cmd_buf[0] = 0xe7;
-  nrf24l01p_cmd_buf[1] = 0xe7;
-  nrf24l01p_cmd_buf[2] = 0xe7;
-  nrf24l01p_cmd_buf[3] = 0xe7;
-  nrf24l01p_cmd_buf[4] = 0xe7;
-  nrf24l01p_write_reg40(NRF24L01P_REG_TX_ADDR);
-  /* enable tx no ack command */
-  nrf24l01p_enable_tx_noack();
-
-  nrf24l01p_set_powerdown();
-
-  /* setup interrupt on change. disable pullup. */
-  DDRB &= ~(1 << 1);
-  PORTB &= ~(1 << 1);
-  PCICR |= 1 << 0;
+  /* setup portd3 interrupt on change. disable pullup. */
+  DDRD &= ~(1 << 3);
+  PORTD &= ~(1 << 3);
+  PCICR |= 1 << 2;
   /* enable portb1 interrupt on change */
-  PCMSK0 |= 1 << 1;
+  PCMSK2 |= 1 << 3;
 
   /* disable timer */
   timer_disable();
@@ -185,8 +157,7 @@ int main(void)
   /* timer and pinchange int wakeup sources */
   set_sleep_mode(SLEEP_MODE_IDLE);
 
-  nrf24l01p_powerdown_to_standby();
-  nrf24l01p_standby_to_rx();
+  nrf_set_rx_mode();
 
   while (1)
   {
