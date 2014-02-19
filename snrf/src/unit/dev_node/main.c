@@ -7,6 +7,27 @@
 #include "../../../../src/nrf.c"
 
 
+/* led */
+
+static void led_set(void)
+{
+  DDRB |= 1 << 1;
+  PORTB |= 1 << 1;
+}
+
+static void led_clr(void)
+{
+  DDRB |= 1 << 1;
+  PORTB &= ~(1 << 1);
+}
+
+static void led_xor(void)
+{
+  DDRB |= 1 << 1;
+  PORTB ^= 1 << 1;
+}
+
+
 /* timer */
 
 static volatile uint8_t timer_irq = 0;
@@ -33,7 +54,11 @@ static void timer_enable(void)
 
   /* CTC mode, overflow when OCR1A reached */
   TCCR1A = 0;
+#if (F_CPU == 8000000L)
+  OCR1A = 7812;
+#else
   OCR1A = 15625;
+#endif
   TCNT1 = 0;
   TCCR1C = 0;
 
@@ -59,6 +84,8 @@ static void do_tx(void)
 #define PAYLOAD_WIDTH 16
   static uint8_t tx_buf[PAYLOAD_WIDTH];
   uint8_t i;
+
+  led_xor();
 
   for (i = 0; i < PAYLOAD_WIDTH; ++i) tx_buf[i] = tx_pattern;
   ++tx_pattern;
@@ -139,14 +166,22 @@ ISR(PCINT2_vect)
 
 int main(void)
 {
+  uint8_t rx_addr[4] = { 0x10, 0x10, 0x10, 0x10 };
+  uint8_t tx_addr[4] = { 0x20, 0x20, 0x20, 0x20 };
+
   nrf_setup();
+  nrf_set_payload_width(PAYLOAD_WIDTH);
+  nrf_set_addr_width(4);
+  nrf_set_tx_addr(tx_addr);
+  nrf_set_rx_addr(rx_addr);
   nrf_set_powerdown_mode();
+  nrf_setup_rx_irq();
 
   /* setup portd3 interrupt on change. disable pullup. */
   DDRD &= ~(1 << 3);
   PORTD &= ~(1 << 3);
   PCICR |= 1 << 2;
-  /* enable portb1 interrupt on change */
+  /* enable portd3 interrupt on change */
   PCMSK2 |= 1 << 3;
 
   /* disable timer */

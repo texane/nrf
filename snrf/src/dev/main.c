@@ -249,17 +249,15 @@ static void handle_set_msg(snrf_msg_t* msg)
 #endif
 
   case SNRF_KEY_ADDR_WIDTH:
-    {
-      if (nrf_set_addr_width(val)) MAKE_COMPL_ERROR(msg, SNRF_ERR_VAL);
-      break ;
-    }
+    if (nrf_set_addr_width(val)) MAKE_COMPL_ERROR(msg, SNRF_ERR_VAL);
+    break ;
 
   case SNRF_KEY_RX_ADDR:
-    nrf_set_rx_addr((uint8_t*)&msg->u.set.val);
+    nrf_set_rx_addr((uint8_t*)&val);
     break ;
 
   case SNRF_KEY_TX_ADDR:
-    nrf_set_tx_addr((uint8_t*)&msg->u.set.val);
+    nrf_set_tx_addr((uint8_t*)&val);
     break ;
 
   case SNRF_KEY_TX_ACK:

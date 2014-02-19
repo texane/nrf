@@ -26,34 +26,11 @@ static inline void nrf_setup(void)
   nrf24l01p_set_rate(NRF24L01P_RATE_2MBPS);
   nrf24l01p_set_chan(2);
   nrf24l01p_set_addr_width(NRF24L01P_ADDR_WIDTH_4);
-
-  /* rx address */
-  nrf24l01p_cmd_buf[0] = 0x10;
-  nrf24l01p_cmd_buf[1] = 0x10;
-  nrf24l01p_cmd_buf[2] = 0x10;
-  nrf24l01p_cmd_buf[3] = 0x10;
-  nrf24l01p_write_reg40(NRF24L01P_REG_RX_ADDR_P0);
-
-  /* tx address */
-  nrf24l01p_cmd_buf[0] = 0x20;
-  nrf24l01p_cmd_buf[1] = 0x20;
-  nrf24l01p_cmd_buf[2] = 0x20;
-  nrf24l01p_cmd_buf[3] = 0x20;
-  nrf24l01p_write_reg40(NRF24L01P_REG_TX_ADDR);
-
-  /* enable tx no ack command */
   nrf24l01p_enable_tx_noack();
 
 #elif (NRF_CONFIG_NRF905 == 1)
 
-  uint8_t tx_addr[4] = { 0x10, 0x10, 0x10, 0x10 };
-  uint8_t rx_addr[4] = { 0x20, 0x20, 0x20, 0x20 };
-
   nrf905_setup();
-  nrf905_set_tx_addr(tx_addr, 4);
-  nrf905_set_rx_addr(rx_addr, 4);
-  nrf905_set_payload_width(16);
-  nrf905_commit_config();
 
 #endif
 }
