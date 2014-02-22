@@ -232,7 +232,7 @@ int main(int ac, char** av)
   snrf_handle_t snrf;
   int err = -1;
 
-  if (snrf_open(&snrf))
+  if (snrf_open_with_path(&snrf, "/dev/ttyUSB0"))
   {
     PERROR();
     goto on_error_0;
