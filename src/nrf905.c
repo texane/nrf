@@ -605,14 +605,6 @@ static void nrf905_set_channel_927_8(void)
 
 /* operating modes */
 
-static void nrf905_set_powerdown(void)
-{
-  /* minimize power consumption to 3uA */
-  /* configuration word is maintained */
-
-  nrf905_clear_pwr();
-}
-
 static void nrf905_set_standby(void)
 {
   /* minimize power consumption to 50uA */
@@ -636,7 +628,7 @@ static void nrf905_set_rx(void)
   nrf905_set_pwr();
 }
 
-static void nrf905_disable_trxx(void)
+static void nrf905_disable_txrx(void)
 {
   nrf905_clear_trx();
 }
@@ -657,7 +649,7 @@ static void nrf905_write_payload_zero(uint8_t* buf)
 
   /* a packet is transmit first, then txr is checked */
   /* leave in standby mode */
-  nrf905_set_trx();
+  nrf905_clear_trx();
 }
 
 static void nrf905_write_payload(void)
@@ -737,7 +729,6 @@ static void nrf905_setup(void)
   /* nrf905_set_channel_919_8(); */
   /* nrf905_set_channel_927_8(); */
   /* -10db */
-  /* nrf905_set_pa_pwr(0); */
   nrf905_set_pa_pwr(3);
   /* power reduction disabled */
   nrf905_set_rx_red_pwr(0);

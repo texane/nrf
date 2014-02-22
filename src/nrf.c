@@ -59,7 +59,7 @@ static inline void nrf_set_powerdown_mode(void)
 
 #elif (NRF_CONFIG_NRF905 == 1)
 
-  /* TODO: check the doc and current state */
+  nrf905_set_standby();
 
 #endif
 }
