@@ -729,7 +729,7 @@ static void nrf905_setup(void)
   /* nrf905_set_channel_919_8(); */
   /* nrf905_set_channel_927_8(); */
   /* -10db */
-  nrf905_set_pa_pwr(3);
+  nrf905_set_pa_pwr(0);
   /* power reduction disabled */
   nrf905_set_rx_red_pwr(0);
   /* auto retransmission disabled */
