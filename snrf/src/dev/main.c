@@ -392,6 +392,7 @@ static void handle_payload_msg(snrf_msg_t* msg)
 #elif (NRF_CONFIG_NRF905 == 1)
 
   nrf905_write_payload_zero(msg->u.payload.data);
+  nrf905_set_rx();
 
 #endif
 
