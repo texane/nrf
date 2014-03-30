@@ -639,11 +639,13 @@ static void nrf905_write_payload_zero(uint8_t* buf)
 {
   /* writing the payload must be done with txr_ce = 0 */
   nrf905_clear_trx();
+  nrf905_set_txe();
+  nrf905_set_pwr();
 
   nrf905_cmd_write(NRF905_CMD_WTP, buf, nrf905_payload_width);
 
   /* send the packet */
-  nrf905_set_tx();
+  nrf905_set_trx();
 
   while (nrf905_is_dr() == 0) ;
 
