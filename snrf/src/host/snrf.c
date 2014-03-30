@@ -48,18 +48,16 @@ int snrf_open_with_path(snrf_handle_t* snrf, const char* path)
 
   snrf->msg_rpos = 0;
 
-#if 0 /* sync later only if needed */
-  if (snrf_sync(snrf))
-  {
-    SNRF_PERROR();
-    goto on_error_1;
-  }
-#endif
-
   if (snrf_get_keyval(snrf, SNRF_KEY_STATE, &snrf->state))
   {
-    SNRF_PERROR();
-    goto on_error_1;
+    /* sync only if needed */
+    snrf_sync(snrf);
+
+    if (snrf_get_keyval(snrf, SNRF_KEY_STATE, &snrf->state))
+    {
+      SNRF_PERROR();
+      goto on_error_1;
+    }
   }
 
   return 0;
