@@ -49,9 +49,13 @@ static inline void write_payload_msg(const uint8_t* data, uint8_t size)
 
   static const uint8_t op = SNRF_OP_PAYLOAD;
   static const uint8_t sync = 0x00;
+  static const uint8_t pad = 0x2a;
+  uint8_t i;
 
   uart_write(&op, sizeof(uint8_t));
   uart_write(data, size);
+  for (i = 0; i != (SNRF_MAX_PAYLOAD_WIDTH - size); ++i)
+    uart_write(&pad, sizeof(uint8_t));
   uart_write(&size, sizeof(uint8_t));
   uart_write(&sync, sizeof(uint8_t));
 }

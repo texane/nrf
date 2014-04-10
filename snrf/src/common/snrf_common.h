@@ -61,7 +61,7 @@ typedef struct
   {
     struct
     {
-#define SNRF_MAX_PAYLOAD_WIDTH 16
+#define SNRF_MAX_PAYLOAD_WIDTH 24
       uint8_t data[SNRF_MAX_PAYLOAD_WIDTH];
       uint8_t size;
     } __attribute__((packed)) payload;
