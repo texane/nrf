@@ -1,4 +1,4 @@
-CC := gcc
+CC := $(CROSS_COMPILE)gcc
 CFLAGS := -Wall -O2 -I../common -I.
 
 SRCS := snrf.c serial.c
