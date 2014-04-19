@@ -6,7 +6,7 @@
 <setting alwaysvectorfont="no"/>
 <setting verticaltext="up"/>
 </settings>
-<grid distance="0.1" unitdist="inch" unit="inch" style="lines" multiple="1" display="yes" altdistance="0.01" altunitdist="inch" altunit="inch"/>
+<grid distance="2.54" unitdist="mm" unit="mm" style="lines" multiple="1" display="yes" altdistance="0.01" altunitdist="inch" altunit="inch"/>
 <layers>
 <layer number="1" name="Top" color="4" fill="1" visible="no" active="no"/>
 <layer number="16" name="Bottom" color="1" fill="1" visible="no" active="no"/>
@@ -11416,7 +11416,7 @@ Source: www.farnell.com/datasheets/247.pdf</description>
 <part name="C2" library="rcl" deviceset="C-EU" device="C1206K" value="100n"/>
 <part name="C3" library="resistor" deviceset="CPOL-EU" device="A/3216-18W" value="2.2u"/>
 <part name="C4" library="resistor" deviceset="CPOL-EU" device="A/3216-18W" value="2.2u"/>
-<part name="U1" library="ADP3338AKCZ" deviceset="ADP3338AKCZ-2.5RL7" device=""/>
+<part name="U1" library="ADP3338AKCZ" deviceset="ADP3338AKCZ-2.5RL7" device="" value="LDO33"/>
 <part name="C5" library="rcl" deviceset="C-EU" device="C1206K" value="100n"/>
 <part name="C6" library="resistor" deviceset="CPOL-EU" device="A/3216-18W" value="2.2u"/>
 </parts>
@@ -11441,11 +11441,14 @@ Source: www.farnell.com/datasheets/247.pdf</description>
 <text x="55.88" y="58.42" size="1.778" layer="97">pb4 (spi_miso)</text>
 <text x="55.88" y="55.88" size="1.778" layer="97">pb3 (spi_mosi)</text>
 <text x="55.88" y="53.34" size="1.778" layer="97">pb2 (spi_csn)</text>
-<text x="-38.1" y="5.08" size="1.778" layer="97">actually a ap1117e33g</text>
+<text x="-45.72" y="7.62" size="1.778" layer="97">actually a ap1117e33g</text>
 </plain>
 <instances>
 <instance part="PCB1" gate="G$1" x="20.32" y="63.5" rot="R90"/>
-<instance part="CON_NRF" gate="G$1" x="99.06" y="81.28"/>
+<instance part="CON_NRF" gate="G$1" x="99.06" y="81.28" smashed="yes">
+<attribute name="VALUE" x="95.25" y="68.58" size="1.778" layer="96"/>
+<attribute name="NAME" x="92.71" y="66.802" size="1.778" layer="95"/>
+</instance>
 <instance part="CON_HOST_SPI" gate="1" x="-55.88" y="81.28"/>
 <instance part="CON_HOST_USB" gate="G$1" x="-55.88" y="50.8" rot="R180"/>
 <instance part="IC1" gate="1" x="96.52" y="17.78"/>
@@ -11453,7 +11456,10 @@ Source: www.farnell.com/datasheets/247.pdf</description>
 <instance part="C2" gate="G$1" x="-7.62" y="12.7"/>
 <instance part="C3" gate="G$1" x="-63.5" y="15.24"/>
 <instance part="C4" gate="G$1" x="2.54" y="12.7"/>
-<instance part="U1" gate="A" x="-33.02" y="20.32"/>
+<instance part="U1" gate="A" x="-33.02" y="20.32" smashed="yes">
+<attribute name="NAME" x="-37.7444" y="27.0764" size="2.0828" layer="95" ratio="10" rot="SR0"/>
+<attribute name="VALUE" x="-38.735" y="7.5438" size="2.0828" layer="96" ratio="10" rot="SR0" display="off"/>
+</instance>
 <instance part="C5" gate="G$1" x="58.42" y="35.56"/>
 <instance part="C6" gate="G$1" x="50.8" y="35.56"/>
 </instances>
