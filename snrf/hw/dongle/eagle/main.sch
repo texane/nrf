@@ -115,10 +115,10 @@
 <pad name="13" x="8.89" y="1.27" drill="1.016" diameter="1.6764" rot="R90"/>
 <pad name="12" x="6.35" y="1.27" drill="1.016" diameter="1.6764" rot="R90"/>
 <pad name="11" x="3.81" y="1.27" drill="1.016" diameter="1.6764" rot="R90"/>
-<wire x1="0" y1="0" x2="0" y2="17.78" width="0.127" layer="20"/>
-<wire x1="0" y1="17.78" x2="30.48" y2="17.78" width="0.127" layer="20"/>
-<wire x1="30.48" y1="17.78" x2="30.48" y2="0" width="0.127" layer="20"/>
-<wire x1="30.48" y1="0" x2="0" y2="0" width="0.127" layer="20"/>
+<wire x1="0" y1="0" x2="0" y2="17.78" width="0.127" layer="51"/>
+<wire x1="0" y1="17.78" x2="30.48" y2="17.78" width="0.127" layer="51"/>
+<wire x1="30.48" y1="17.78" x2="30.48" y2="0" width="0.127" layer="51"/>
+<wire x1="30.48" y1="0" x2="0" y2="0" width="0.127" layer="51"/>
 <pad name="5V." x="29.21" y="6.35" drill="1.016" diameter="1.6764" rot="R90"/>
 <pad name=".GND" x="29.21" y="3.81" drill="1.016" diameter="1.6764" rot="R90"/>
 <pad name="..GND" x="1.27" y="3.81" drill="1.016" diameter="1.6764" rot="R90"/>
