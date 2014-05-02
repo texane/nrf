@@ -1,13 +1,10 @@
-NORDIC radio frequency core repository, plus unit testing programs.
+NORDIC chipsets related repository
 
 nrf24l01p and nrf905 are currently supported. There is an implem for
 nrf2401a, not tested.
 
-Also, there is a set of functions to program NRF chipsets independtly
-of the actual hardware.
-
-src: source common to all projects (nrfxxx.c, spi, uart)
-snrf: serial to nrf. contains both codes and schematics.
-unit/bw: bandwidth related tests
-unit/range: used to test the emission / reception range
-unit/simple: do not remember, but must be something simple
+This repo contains:
+. microcontroller code to use the NRF chipsets (refer to src directory),
+. host library to communicate with the chipset from LINUX over serial
+(refer to snrf/src directory),
+. schematics for a serial bridge board (refer to snrf/hw directory).
