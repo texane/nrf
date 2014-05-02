@@ -145,54 +145,22 @@ static uint8_t nrf905_is_am(void)
 #else /* ATMEGA328P */
 
 #include <avr/io.h>
-#include "spi.c"
 
-/* hardcoded in spi.c */
+#if defined(NRF_CONFIG_SOFTSPI)
+#define SOFTSPI_MODE_0 1
+#include "softspi.c"
+#define NRF905_IO_CSN_DDR SOFTSPI_CSN_DDR
+#define NRF905_IO_CSN_PORT SOFTSPI_CSN_PORT
+#define NRF905_IO_CSN_MASK SOFTSPI_CSN_MASK
+#else /* NRF_CONFIG_SOFTSPI */
+#include "spi.c"
 #define NRF905_IO_CSN_MASK (1 << 2)
 #define NRF905_IO_CSN_DDR DDRB
 #define NRF905_IO_CSN_PORT PORTB
-#define NRF905_IO_MOSI_MASK (1 << 3)
-#define NRF905_IO_MOSI_DDR DDRB
-#define NRF905_IO_MOSI_PORT PORTB
-#define NRF905_IO_MISO_MASK (1 << 4)
-#define NRF905_IO_MISO_DDR DDRB
-#define NRF905_IO_MISO_PIN PINB
-#define NRF905_IO_SCK_MASK (1 << 5)
-#define NRF905_IO_SCK_DDR DDRB
-#define NRF905_IO_SCK_PORT PORTB
-
-/* nrf905 misc pins */
-#define NRF905_IO_TXE_MASK (1 << 4)
-#define NRF905_IO_TXE_DDR DDRD
-#define NRF905_IO_TXE_PORT PORTD
-#define NRF905_IO_PWR_MASK (1 << 7)
-#define NRF905_IO_PWR_DDR DDRD
-#define NRF905_IO_PWR_PORT PORTD
-/* TRX is also known as CE */
-#define NRF905_IO_TRX_MASK (1 << 6)
-#define NRF905_IO_TRX_DDR DDRD
-#define NRF905_IO_TRX_PORT PORTD
-#define NRF905_IO_CD_MASK (1 << 0)
-#define NRF905_IO_CD_DDR DDRB
-#define NRF905_IO_CD_PIN PINB
-#define NRF905_IO_DR_MASK (1 << 2)
-#define NRF905_IO_DR_DDR DDRD
-#define NRF905_IO_DR_PIN PIND
-#define NRF905_IO_DR_PORT PORTD
-#define NRF905_IO_AM_MASK (1 << 5)
-#define NRF905_IO_AM_DDR DDRD
-#define NRF905_IO_AM_PIN PIND
-
-/* rx irq is dr. portd2 is pcint18, pcint mask 2 */
-#define NRF905_IO_IRQ_DDR NRF905_IO_DR_DDR
-#define NRF905_IO_IRQ_PORT NRF905_IO_DR_PORT
-#define NRF905_IO_IRQ_MASK NRF905_IO_DR_MASK
-#define NRF905_IO_IRQ_PCICR_MASK (1 << 2)
-#define NRF905_IO_IRQ_PCMSK PCMSK2
+#endif /* NRF_CONFIG_SOFTSPI */
 
 static inline void spi_setup_cs(void)
 {
-  /* spi cs, pb2 */
   NRF905_IO_CSN_DDR |= NRF905_IO_CSN_MASK;
 }
 
@@ -307,20 +275,32 @@ static void nrf905_cmd_prolog(uint8_t cmd)
   /* in case it is already selected */
   spi_cs_high();
   spi_cs_low();
+#if defined(NRF_CONFIG_SOFTSPI)
+  softspi_write_uint8(cmd);
+#else
   spi_write_uint8(cmd);
+#endif
 }
 
 static void nrf905_cmd_read(uint8_t cmd, uint8_t* buf, uint8_t size)
 {
   nrf905_cmd_prolog(cmd);
+#if defined(NRF_CONFIG_SOFTSPI)
+  softspi_read(buf, size);
+#else
   spi_read(buf, size);
+#endif
   spi_cs_high();
 }
 
 static void nrf905_cmd_write(uint8_t cmd, const uint8_t* buf, uint8_t size)
 {
   nrf905_cmd_prolog(cmd);
+#if defined(NRF_CONFIG_SOFTSPI)
+  softspi_write(buf, size);
+#else
   spi_write(buf, size);
+#endif
   spi_cs_high();
 }
 
@@ -369,7 +349,11 @@ static uint8_t nrf905_read_status(void)
   spi_cs_high();
 
   spi_cs_low();
+#if defined(NRF_CONFIG_SOFTSPI)
+  x = softspi_read_uint8();
+#else
   x = spi_read_uint8();
+#endif
   spi_cs_high();
 
   return x;

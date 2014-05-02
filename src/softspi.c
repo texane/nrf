@@ -89,23 +89,8 @@ static inline uint8_t softspi_is_miso(void)
 #include <stdint.h>
 #include <avr/io.h>
 
-
-/* default pins */
-#define SOFTSPI_CLK_DDR DDRD
-#define SOFTSPI_CLK_PORT PORTD
-#define SOFTSPI_CLK_MASK (1 << 3)
-#define SOFTSPI_MOSI_DDR DDRD
-#define SOFTSPI_MOSI_PORT PORTD
-#define SOFTSPI_MOSI_MASK (1 << 4)
-
 #ifndef SOFTSPI_DONT_USE_MISO
 #define SOFTSPI_DONT_USE_MISO 0
-#endif
-
-#if (SOFTSPI_DONT_USE_MISO == 0)
-#define SOFTSPI_MISO_DDR DDRD
-#define SOFTSPI_MISO_PIN PIND
-#define SOFTSPI_MISO_MASK (1 << 5)
 #endif
 
 static void softspi_setup_master(void)
@@ -114,7 +99,7 @@ static void softspi_setup_master(void)
   SOFTSPI_MOSI_DDR |= SOFTSPI_MOSI_MASK;
 
 #if (SOFTSPI_DONT_USE_MISO == 0)
-  SOFTSPI_MISO_DDR |= SOFTSPI_MISO_MASK;
+  SOFTSPI_MISO_DDR &= ~SOFTSPI_MISO_MASK;
 #endif
 }
 
@@ -188,6 +173,11 @@ static inline void softspi_write_uint16(uint16_t x)
   softspi_write_uint8((uint8_t)(x & 0xff));
 }
 
+static void softspi_write(const uint8_t* s, uint8_t n)
+{
+  for (; n != 0; --n, ++s) softspi_write_uint8(*s);
+}
+
 #if (SOFTSPI_DONT_USE_MISO == 0)
 
 static inline void softspi_read_bit(uint8_t* x, uint8_t i)
@@ -229,6 +219,11 @@ static inline uint16_t softspi_read_uint16(void)
   /* msB ordering */
   const uint8_t x = softspi_read_uint8();
   return ((uint16_t)x << 8) | (uint16_t)softspi_read_uint8();
+}
+
+static void softspi_read(uint8_t* s, uint8_t n)
+{
+  for (; n != 0; --n, ++s) *s = softspi_read_uint8();
 }
 
 #endif /* SOFTSPI_DONT_USE_MISO == 0 */

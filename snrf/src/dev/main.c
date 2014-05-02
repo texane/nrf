@@ -6,7 +6,50 @@
 #include "../common/snrf_common.h"
 #include "../../../src/uart.c"
 
+/* enable nrf905, enable softspi, define pins */
 #define NRF_CONFIG_NRF905 1
+
+#define NRF_CONFIG_SOFTSPI 1
+#define SOFTSPI_CLK_DDR DDRC
+#define SOFTSPI_CLK_PORT PORTC
+#define SOFTSPI_CLK_MASK (1 << 1)
+#define SOFTSPI_MOSI_DDR DDRC
+#define SOFTSPI_MOSI_PORT PORTC
+#define SOFTSPI_MOSI_MASK (1 << 2)
+#define SOFTSPI_MISO_DDR DDRC
+#define SOFTSPI_MISO_PIN PINC
+#define SOFTSPI_MISO_MASK (1 << 3)
+#define SOFTSPI_CSN_DDR DDRC
+#define SOFTSPI_CSN_PORT PORTC
+#define SOFTSPI_CSN_MASK (1 << 0)
+
+#define NRF905_IO_TXE_MASK (1 << 4)
+#define NRF905_IO_TXE_DDR DDRD
+#define NRF905_IO_TXE_PORT PORTD
+#define NRF905_IO_PWR_MASK (1 << 5)
+#define NRF905_IO_PWR_DDR DDRD
+#define NRF905_IO_PWR_PORT PORTD
+/* TRX is also known as CE */
+#define NRF905_IO_TRX_MASK (1 << 6)
+#define NRF905_IO_TRX_DDR DDRD
+#define NRF905_IO_TRX_PORT PORTD
+#define NRF905_IO_CD_MASK (1 << 7)
+#define NRF905_IO_CD_DDR DDRD
+#define NRF905_IO_CD_PIN PIND
+#define NRF905_IO_DR_MASK (1 << 2)
+#define NRF905_IO_DR_DDR DDRD
+#define NRF905_IO_DR_PIN PIND
+#define NRF905_IO_DR_PORT PORTD
+#define NRF905_IO_AM_MASK (1 << 0)
+#define NRF905_IO_AM_DDR DDRB
+#define NRF905_IO_AM_PIN PINB
+/* rx irq is dr. portd2 is pcint18, pcint mask 2 */
+#define NRF905_IO_IRQ_DDR NRF905_IO_DR_DDR
+#define NRF905_IO_IRQ_PORT NRF905_IO_DR_PORT
+#define NRF905_IO_IRQ_MASK NRF905_IO_DR_MASK
+#define NRF905_IO_IRQ_PCICR_MASK (1 << 2)
+#define NRF905_IO_IRQ_PCMSK PCMSK2
+
 #include "../../../src/nrf.c"
 
 

@@ -15,8 +15,12 @@
 static inline void nrf_setup(void)
 {
   /* setup spi first */
+#if defined(NRF_CONFIG_SOFTSPI)
+  softspi_setup_master();
+#else
   spi_setup_master();
   spi_set_sck_freq(SPI_SCK_FREQ_FOSC2);
+#endif
 
 #if (NRF_CONFIG_NRF24L01P == 1)
 
