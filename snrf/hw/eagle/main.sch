@@ -6,7 +6,7 @@
 <setting alwaysvectorfont="no"/>
 <setting verticaltext="up"/>
 </settings>
-<grid distance="0.1" unitdist="inch" unit="inch" style="lines" multiple="1" display="yes" altdistance="0.01" altunitdist="inch" altunit="inch"/>
+<grid distance="0.1" unitdist="inch" unit="inch" style="lines" multiple="1" display="no" altdistance="0.01" altunitdist="inch" altunit="inch"/>
 <layers>
 <layer number="1" name="Top" color="4" fill="1" visible="no" active="no"/>
 <layer number="16" name="Bottom" color="1" fill="1" visible="no" active="no"/>
@@ -11488,7 +11488,7 @@ DIN A4, landscape with location and doc. field</description>
 <text x="55.88" y="55.88" size="1.778" layer="97">pb3 (spi_mosi)</text>
 <text x="55.88" y="53.34" size="1.778" layer="97">pb2 (spi_csn)</text>
 <text x="-45.72" y="7.62" size="1.778" layer="97">actually a ap1117e33g</text>
-<text x="66.04" y="-30.48" size="1.778" layer="94" font="vector">SNRF bridge</text>
+<text x="66.04" y="-30.48" size="1.778" layer="94" font="vector">snrf_dongle_v0000</text>
 <text x="66.04" y="-35.56" size="1.778" layer="94" font="vector">https://github.com/texane/nrf</text>
 <text x="66.04" y="-40.64" size="1.778" layer="94" font="vector">texane@gmail.com</text>
 </plain>
